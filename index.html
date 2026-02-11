@@ -4,6 +4,9 @@
 <meta charset="UTF-8">
 <title>CoChat</title>
 
+<link rel="manifest" href="/manifest.json">
+<meta name="theme-color" content="#10a37f">
+
 <style>
 body {
   margin: 0;
@@ -306,5 +309,17 @@ window.sendMessage = function() {
 };
 </script>
 
+<script>
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("/sw.js")
+      .then(() => console.log("Service Worker зарегистрирован"))
+      .catch(err => console.log("Ошибка SW:", err));
+  });
+}
+</script>
+
 </body>
 </html>
+
+

@@ -2,181 +2,199 @@
 <html>
 <head>
 <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>CoChat</title>
 
 <style>
+* { box-sizing: border-box; }
+
 body {
   margin: 0;
-  font-family: Arial, sans-serif;
-  background-color: #1e1e1e;
+  font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+  background: #111;
   color: white;
-  display: flex;
-  justify-content: center;
-  align-items: center;
   height: 100vh;
+  overflow: hidden;
 }
 
-.container {
-  width: 95%;
+/* ===== ОСНОВНОЙ КОНТЕЙНЕР ===== */
+
+.app {
+  height: 100vh;
   max-width: 480px;
-  height: 96vh;
-  background: #2a2a2a;
-  border-radius: 20px;
+  margin: auto;
   display: flex;
   flex-direction: column;
-  padding: 12px;
-  box-sizing: border-box;
-  position: relative;
+  background: #1a1a1a;
 }
 
-h2, h3 {
-  margin: 5px 0;
-  text-align: center;
+/* ===== HEADER ===== */
+
+.header {
+  padding: 14px;
+  background: #0f0f0f;
+  display: flex;
+  align-items: center;
+  font-weight: 600;
+  border-bottom: 1px solid #222;
 }
 
-input {
-  padding: 8px;
-  margin: 4px 0;
-  border-radius: 8px;
-  border: none;
-  font-size: 13px;
-}
-
-button {
-  padding: 8px;
-  border: none;
-  border-radius: 8px;
-  background-color: #10a37f;
-  color: white;
-  font-size: 13px;
+.back-btn {
+  margin-right: 10px;
   cursor: pointer;
-}
-
-.back-button {
-  position: absolute;
-  top: 10px;
-  left: 12px;
   font-size: 18px;
-  cursor: pointer;
-  opacity: 0.7;
 }
 
-#messages {
+/* ===== MESSAGES ===== */
+
+.messages {
   flex: 1;
   overflow-y: auto;
-  margin: 8px 0;
+  padding: 12px;
   display: flex;
   flex-direction: column;
 }
 
 .message {
   max-width: 75%;
-  padding: 8px 10px;
-  border-radius: 15px;
-  margin: 4px 0;
-  font-size: 13px;
-  animation: fadeIn 0.2s ease;
+  padding: 10px 14px;
+  border-radius: 18px;
+  margin-bottom: 8px;
+  font-size: 14px;
+  animation: fadeIn 0.15s ease;
+  word-wrap: break-word;
 }
 
-.mine {
-  align-self: flex-end;
+.my-message {
   background: white;
   color: black;
+  align-self: flex-end;
 }
 
-.other {
-  align-self: flex-start;
-  background: #10a37f;
+.other-message {
+  background: #00c853;
   color: white;
+  align-self: flex-start;
 }
 
 .time {
   font-size: 10px;
   opacity: 0.6;
-  margin-top: 3px;
+  margin-top: 4px;
 }
 
-@keyframes fadeIn {
-  from { opacity: 0; transform: translateY(5px); }
-  to { opacity: 1; transform: translateY(0); }
+.typing {
+  font-size: 12px;
+  opacity: 0.6;
+  margin: 5px 0;
 }
 
-#inputArea {
+/* ===== INPUT ===== */
+
+.input-area {
   display: flex;
-  gap: 5px;
+  padding: 10px;
+  border-top: 1px solid #222;
+  background: #0f0f0f;
 }
 
-#inputArea input {
+input {
   flex: 1;
+  padding: 10px;
+  border-radius: 20px;
+  border: none;
+  outline: none;
+  font-size: 14px;
 }
 
-#typingStatus {
-  font-size: 11px;
-  opacity: 0.7;
-  min-height: 14px;
+button {
+  margin-left: 8px;
+  padding: 10px 16px;
+  border-radius: 20px;
+  border: none;
+  background: #00c853;
+  color: white;
+  cursor: pointer;
+}
+
+/* ===== MENU ===== */
+
+.menu {
+  padding: 20px;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.menu input {
+  width: 100%;
+  margin-bottom: 10px;
 }
 
 .chat-history {
-  margin-top: 10px;
-  background: #1f1f1f;
-  border-radius: 10px;
-  padding: 6px;
+  margin-top: 20px;
   max-height: 120px;
   overflow-y: auto;
-  font-size: 12px;
+  background: #0f0f0f;
+  padding: 10px;
+  border-radius: 10px;
 }
 
-.chat-item {
-  padding: 4px;
+.history-item {
+  font-size: 13px;
+  margin-bottom: 6px;
   cursor: pointer;
-  border-bottom: 1px solid #333;
-}
-
-.chat-item:last-child {
-  border-bottom: none;
-}
-
-.chat-item:hover {
-  background: #333;
+  opacity: 0.8;
 }
 
 .footer {
-  position: absolute;
-  bottom: 8px;
-  width: 100%;
   text-align: center;
-  font-size: 11px;
-  opacity: 0.4;
+  font-size: 12px;
+  opacity: 0.3;
+  margin-top: 20px;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 </style>
 </head>
+
 <body>
 
-<div id="login" class="container">
-  <h2>CoChat</h2>
-  <input id="usernameInput" placeholder="Ваше имя">
-  <input id="roomInput" placeholder="Название комнаты">
-  <input id="passwordInput" placeholder="Пароль">
-  <button onclick="enterChat()">Войти</button>
-  <div class="chat-history" id="historyBox"></div>
-  <div class="footer">MEZENCEV&CO</div>
+<div id="menu" class="app">
+  <div class="menu">
+    <h2>CoChat</h2>
+    <input id="username" placeholder="Your name">
+    <input id="room" placeholder="Chat name">
+    <input id="password" placeholder="Password">
+    <button onclick="joinChat()">Enter</button>
+
+    <div class="chat-history" id="history"></div>
+    <div class="footer">MEZENCEV&CO</div>
+  </div>
 </div>
 
-<div id="chat" class="container" style="display:none;">
-  <div class="back-button" onclick="goBack()">←</div>
-  <h3 id="roomTitle"></h3>
-  <div id="messages"></div>
-  <div id="typingStatus"></div>
-  <div id="inputArea">
-    <input id="messageInput" placeholder="Сообщение...">
-    <button onclick="sendMessage()">➤</button>
+<div id="chat" class="app" style="display:none;">
+  <div class="header">
+    <span class="back-btn" onclick="goBack()">←</span>
+    <span id="chatTitle"></span>
+  </div>
+
+  <div class="messages" id="messages"></div>
+  <div class="typing" id="typingStatus"></div>
+
+  <div class="input-area">
+    <input id="messageInput" placeholder="Type message...">
+    <button onclick="sendMessage()">Send</button>
   </div>
 </div>
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-import { getDatabase, ref, push, onChildAdded, set, onValue, remove, get }
-from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+import { getDatabase, ref, push, onChildAdded, onValue, set, remove } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyA64EfxQkGhcCKnxAT_0k_3BTFt5wc6x-E",
@@ -189,104 +207,156 @@ const firebaseConfig = {
 };
 
 const app = initializeApp(firebaseConfig);
-const database = getDatabase(app);
+const db = getDatabase(app);
 
 let currentRoom = "";
+let currentPassword = "";
 let username = "";
-const correctPassword = "1234";
-const FIVE_DAYS = 5 * 24 * 60 * 60 * 1000;
+let typingTimeout;
 
-const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+/* ===== JOIN ===== */
 
-function playTone(freq) {
-  const osc = audioCtx.createOscillator();
-  const gain = audioCtx.createGain();
-  osc.connect(gain);
-  gain.connect(audioCtx.destination);
-  osc.frequency.value = freq;
-  osc.type = "sine";
-  gain.gain.value = 0.05;
-  osc.start();
-  setTimeout(() => osc.stop(), 100);
-}
+window.joinChat = function() {
+  username = usernameInput.value;
+  currentRoom = room.value;
+  currentPassword = password.value;
+
+  if (!username || !currentRoom) return;
+
+  document.getElementById("menu").style.display = "none";
+  document.getElementById("chat").style.display = "flex";
+  chatTitle.innerText = currentRoom;
+
+  cleanOldRooms();
+  loadMessages();
+};
+
+/* ===== BACK ===== */
 
 window.goBack = function() {
   document.getElementById("chat").style.display = "none";
-  document.getElementById("login").style.display = "flex";
-  document.getElementById("messages").innerHTML = "";
+  document.getElementById("menu").style.display = "flex";
+  renderHistory();
 };
 
-window.enterChat = async function() {
-  const room = document.getElementById("roomInput").value.trim();
-  const password = document.getElementById("passwordInput").value;
-  username = document.getElementById("usernameInput").value.trim();
-
-  if(password !== correctPassword) return alert("Неверный пароль");
-  if(room === "" || username === "") return alert("Введите имя и комнату");
-
-  currentRoom = room;
-
-  const messagesRef = ref(database, "rooms/" + room);
-  const snapshot = await get(messagesRef);
-
-  if(snapshot.exists()) {
-    const data = snapshot.val();
-    const keys = Object.keys(data);
-    const lastMsg = data[keys[keys.length - 1]];
-    if(Date.now() - lastMsg.timestamp > FIVE_DAYS) {
-      await remove(messagesRef);
-    }
-  }
-
-  document.getElementById("login").style.display = "none";
-  document.getElementById("chat").style.display = "flex";
-  document.getElementById("roomTitle").innerText = room;
-
-  onChildAdded(messagesRef, (data) => {
-    const msgData = data.val();
-    displayMessage(msgData);
-  });
-};
-
-function displayMessage(msgData) {
-  const msg = document.createElement("div");
-  msg.className = "message " +
-    (msgData.user === username ? "mine" : "other");
-
-  msg.innerHTML = `
-    <div><strong>${msgData.user}</strong>: ${msgData.text}</div>
-    <div class="time">${msgData.time}</div>
-  `;
-
-  document.getElementById("messages").appendChild(msg);
-  document.getElementById("messages").scrollTop =
-    document.getElementById("messages").scrollHeight;
-
-  if(msgData.user === username) {
-    playTone(600);
-  } else {
-    playTone(400);
-  }
-}
+/* ===== SEND ===== */
 
 window.sendMessage = function() {
-  const input = document.getElementById("messageInput");
-  if(input.value.trim() === "") return;
+  const text = messageInput.value;
+  if (!text) return;
 
-  const now = new Date();
-  const timeString =
-    now.getHours().toString().padStart(2,'0') + ":" +
-    now.getMinutes().toString().padStart(2,'0');
-
-  push(ref(database, "rooms/" + currentRoom), {
+  push(ref(db, roomPath()), {
     user: username,
-    text: input.value,
-    time: timeString,
-    timestamp: Date.now()
+    text,
+    time: Date.now()
   });
 
-  input.value = "";
+  saveHistory();
+  messageInput.value = "";
 };
+
+/* ===== ROOM PATH ===== */
+
+function roomPath() {
+  return "rooms/" + currentRoom + "_" + currentPassword;
+}
+
+/* ===== LOAD ===== */
+
+function loadMessages() {
+  messages.innerHTML = "";
+
+  onChildAdded(ref(db, roomPath()), snapshot => {
+    const msg = snapshot.val();
+
+    const div = document.createElement("div");
+    div.className = "message " + (msg.user === username ? "my-message" : "other-message");
+
+    const time = new Date(msg.time);
+    div.innerHTML = `
+      ${msg.text}
+      <div class="time">${time.getHours()}:${String(time.getMinutes()).padStart(2,"0")}</div>
+    `;
+
+    messages.appendChild(div);
+    messages.scrollTop = messages.scrollHeight;
+  });
+}
+
+/* ===== TYPING STATUS ===== */
+
+messageInput.addEventListener("input", () => {
+  set(ref(db, roomPath() + "/typing/" + username), true);
+
+  clearTimeout(typingTimeout);
+  typingTimeout = setTimeout(() => {
+    remove(ref(db, roomPath() + "/typing/" + username));
+  }, 2000);
+});
+
+onValue(ref(db, roomPath() + "/typing"), snapshot => {
+  if (!snapshot.exists()) {
+    typingStatus.innerText = "";
+    return;
+  }
+
+  const users = Object.keys(snapshot.val()).filter(u => u !== username);
+  typingStatus.innerText = users.length ? users.join(", ") + " typing..." : "";
+});
+
+/* ===== HISTORY FIXED ===== */
+
+function saveHistory() {
+  let history = JSON.parse(localStorage.getItem("chatHistory")) || [];
+
+  history = history.filter(chat => chat.room !== currentRoom);
+  history.unshift({ room: currentRoom, password: currentPassword });
+
+  if (history.length > 5) history.pop();
+
+  localStorage.setItem("chatHistory", JSON.stringify(history));
+  renderHistory();
+}
+
+function renderHistory() {
+  history.innerHTML = "";
+  const chats = JSON.parse(localStorage.getItem("chatHistory")) || [];
+
+  chats.forEach(chat => {
+    const div = document.createElement("div");
+    div.className = "history-item";
+    div.innerText = chat.room;
+    div.onclick = () => {
+      room.value = chat.room;
+      password.value = chat.password;
+    };
+    history.appendChild(div);
+  });
+}
+
+/* ===== AUTO DELETE 5 DAYS ===== */
+
+function cleanOldRooms() {
+  const roomsRef = ref(db, "rooms");
+
+  onValue(roomsRef, snapshot => {
+    snapshot.forEach(child => {
+      let lastTime = 0;
+
+      child.forEach(msg => {
+        if (msg.val().time && msg.val().time > lastTime) {
+          lastTime = msg.val().time;
+        }
+      });
+
+      if (!lastTime || Date.now() - lastTime > 5 * 24 * 60 * 60 * 1000) {
+        remove(ref(db, "rooms/" + child.key));
+      }
+    });
+  }, { onlyOnce: true });
+}
+
+renderHistory();
 </script>
 
 </body>

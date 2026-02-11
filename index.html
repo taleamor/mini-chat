@@ -11,19 +11,19 @@
 body {
   margin: 0;
   font-family: Arial, sans-serif;
-  background-color: #1e1e1e;
+  background-color: #2a2a2a; /* теперь совпадает с контейнером */
   color: white;
   display: flex;
   justify-content: center;
-  align-items: flex-start; /* чтобы контейнер начинался сверху */
+  align-items: flex-start;
   min-height: 100vh;
-  overflow-x: hidden; /* убираем горизонтальный скролл */
+  overflow-x: hidden;
 }
 
 .container {
   width: 94%;
   max-width: 460px;
-  min-height: 90vh; /* растягиваем по высоте экрана */
+  height: 100vh; /* контейнер на весь экран */
   background: #2a2a2a;
   border-radius: 18px;
   display: flex;
@@ -66,12 +66,12 @@ button {
 }
 
 #messages {
-  flex: 1 1 auto; /* растягиваем на доступное место */
+  flex: 1 1 auto;
   overflow-y: auto;
   margin: 6px 0;
   display: flex;
   flex-direction: column;
-  scroll-behavior: smooth; /* плавная прокрутка */
+  scroll-behavior: smooth;
 }
 
 .message {
@@ -109,11 +109,29 @@ button {
 #inputArea {
   display: flex;
   gap: 4px;
-  flex-shrink: 0; /* остаётся всегда внизу */
+  flex-shrink: 0;
 }
 
 #inputArea input {
   flex: 1;
+  border-radius: 8px;
+  padding: 7px;
+}
+
+#fileInputLabel {
+  background-color: #10a37f;
+  color: white;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  cursor: pointer;
+  font-size: 18px;
+}
+
+#fileInput {
+  display: none;
 }
 
 .chat-history {
@@ -167,6 +185,8 @@ button {
   <h3 id="roomTitle"></h3>
   <div id="messages"></div>
   <div id="inputArea">
+    <label id="fileInputLabel" for="fileInput">➕</label>
+    <input type="file" id="fileInput" accept="image/*,video/*">
     <input id="messageInput" placeholder="Сообщение...">
     <button onclick="sendMessage()">➤</button>
   </div>
@@ -310,6 +330,31 @@ window.sendMessage = function() {
 
   input.value = "";
 };
+
+/* ===== ФАЙЛЫ ЛОКАЛЬНО ===== */
+
+document.getElementById("fileInput").addEventListener("change", (e) => {
+  const file = e.target.files[0];
+  if(!file) return;
+
+  const reader = new FileReader();
+  reader.onload = function(event) {
+    const dataURL = event.target.result;
+    const msg = document.createElement("div");
+    msg.className = "message mine";
+
+    if(file.type.startsWith("image/")) {
+      msg.innerHTML = `<img src="${dataURL}" style="max-width:200px; border-radius:10px;"><div class="time">📷</div>`;
+    } else if(file.type.startsWith("video/")) {
+      msg.innerHTML = `<video src="${dataURL}" style="max-width:200px;" controls></video><div class="time">🎥</div>`;
+    }
+
+    document.getElementById("messages").appendChild(msg);
+    document.getElementById("messages").scrollTop = document.getElementById("messages").scrollHeight;
+  };
+  reader.readAsDataURL(file);
+  e.target.value = "";
+});
 </script>
 
 <script>

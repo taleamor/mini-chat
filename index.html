@@ -15,14 +15,15 @@ body {
   color: white;
   display: flex;
   justify-content: center;
-  align-items: center;
-  height: 100vh;
+  align-items: flex-start; /* чтобы контейнер начинался сверху */
+  min-height: 100vh;
+  overflow-x: hidden; /* убираем горизонтальный скролл */
 }
 
 .container {
   width: 94%;
   max-width: 460px;
-  height: 88vh;
+  min-height: 90vh; /* растягиваем по высоте экрана */
   background: #2a2a2a;
   border-radius: 18px;
   display: flex;
@@ -65,11 +66,12 @@ button {
 }
 
 #messages {
-  flex: 1;
+  flex: 1 1 auto; /* растягиваем на доступное место */
   overflow-y: auto;
   margin: 6px 0;
   display: flex;
   flex-direction: column;
+  scroll-behavior: smooth; /* плавная прокрутка */
 }
 
 .message {
@@ -107,6 +109,7 @@ button {
 #inputArea {
   display: flex;
   gap: 4px;
+  flex-shrink: 0; /* остаётся всегда внизу */
 }
 
 #inputArea input {
@@ -321,5 +324,3 @@ if ("serviceWorker" in navigator) {
 
 </body>
 </html>
-
-

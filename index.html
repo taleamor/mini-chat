@@ -1,94 +1,210 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <meta charset="UTF-8">
-  <title>Mini Chat</title>
-  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js"></script>
-  <style>
-    body {
-      font-family: Arial;
-      margin: 0;
-      display: flex;
-      flex-direction: column;
-      height: 100vh;
-    }
+<meta charset="UTF-8">
+<title>CoChat</title>
 
-    #messages {
-      flex: 1;
-      padding: 10px;
-      overflow-y: auto;
-    }
+<style>
+body {
+  margin: 0;
+  font-family: Arial, sans-serif;
+  background-color: #1e1e1e;
+  color: white;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100vh;
+}
 
-    .message {
-      margin: 5px 0;
-    }
+.container {
+  width: 95%;
+  max-width: 500px;
+  height: 95vh;
+  background: #2a2a2a;
+  border-radius: 20px;
+  display: flex;
+  flex-direction: column;
+  padding: 15px;
+}
 
-    #inputArea {
-      display: flex;
-      padding: 10px;
-      border-top: 1px solid #ccc;
-    }
+input {
+  padding: 10px;
+  margin: 5px 0;
+  border-radius: 10px;
+  border: none;
+  font-size: 14px;
+}
 
-    input {
-      flex: 1;
-      padding: 10px;
-      font-size: 16px;
-    }
+button {
+  padding: 10px;
+  border: none;
+  border-radius: 10px;
+  background-color: #10a37f;
+  color: white;
+  font-size: 14px;
+  margin-top: 5px;
+}
 
-    button {
-      padding: 10px;
-      font-size: 16px;
-    }
-  </style>
+#messages {
+  flex: 1;
+  overflow-y: auto;
+  margin: 10px 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.message {
+  max-width: 75%;
+  padding: 8px 12px;
+  border-radius: 15px;
+  margin: 5px 0;
+  font-size: 13px;
+  word-wrap: break-word;
+}
+
+.mine {
+  align-self: flex-end;
+  background: white;
+  color: black;
+}
+
+.other {
+  align-self: flex-start;
+  background: #3b82f6;
+  color: white;
+}
+
+.time {
+  font-size: 10px;
+  opacity: 0.6;
+  margin-top: 3px;
+}
+
+#inputArea {
+  display: flex;
+}
+
+#inputArea input {
+  flex: 1;
+  margin-right: 5px;
+}
+</style>
 </head>
 <body>
 
-<div id="messages"></div>
+<div id="login" class="container">
+  <h2>CoChat</h2>
+  <input id="usernameInput" placeholder="Ваше имя">
+  <input id="roomInput" placeholder="Название комнаты">
+  <input id="passwordInput" placeholder="Пароль">
+  <button onclick="enterChat()">Войти</button>
+</div>
 
-<div id="inputArea">
-  <input id="messageInput" placeholder="Написать сообщение..." />
-  <button onclick="sendMessage()">Отправить</button>
+<div id="chat" class="container" style="display:none;">
+  <h3 id="roomTitle"></h3>
+  <div id="messages"></div>
+  <div id="inputArea">
+    <input id="messageInput" placeholder="Сообщение...">
+    <button onclick="sendMessage()">➤</button>
+  </div>
 </div>
 
 <script type="module">
-  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-  import { getDatabase, ref, push, onChildAdded } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getDatabase, ref, push, onChildAdded } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
 
-  const firebaseConfig = {
+const firebaseConfig = {
   apiKey: "AIzaSyA64EfxQkGhcCKnxAT_0k_3BTFt5wc6x-E",
   authDomain: "cochat-18c46.firebaseapp.com",
+  databaseURL: "https://cochat-18c46-default-rtdb.europe-west1.firebasedatabase.app/",
   projectId: "cochat-18c46",
   storageBucket: "cochat-18c46.firebasestorage.app",
   messagingSenderId: "966021418904",
-  appId: "1:966021418904:web:efdf644f1203088c4025ed",
-  measurementId: "G-RF2C1D9GLE"
-  };
+  appId: "1:966021418904:web:efdf644f1203088c4025ed"
+};
 
-  const app = initializeApp(firebaseConfig);
-  const database = getDatabase(app);
-  const messagesRef = ref(database, "messages");
+const app = initializeApp(firebaseConfig);
+const database = getDatabase(app);
 
-  window.sendMessage = function() {
-    const input = document.getElementById("messageInput");
-    if (input.value.trim() === "") return;
+let currentRoom = "";
+let username = "";
+const correctPassword = "1234"; // поменяй если нужно
 
-    push(messagesRef, {
-      text: input.value
-    });
+// Автозаполнение имени
+if(localStorage.getItem("username")) {
+  document.getElementById("usernameInput").value = localStorage.getItem("username");
+}
 
-    input.value = "";
-  };
+window.enterChat = function() {
+  const room = document.getElementById("roomInput").value.trim();
+  const password = document.getElementById("passwordInput").value;
+  username = document.getElementById("usernameInput").value.trim();
 
-  const messagesDiv = document.getElementById("messages");
+  if(password !== correctPassword) {
+    alert("Неверный пароль");
+    return;
+  }
+
+  if(room === "" || username === "") {
+    alert("Введите имя и комнату");
+    return;
+  }
+
+  localStorage.setItem("username", username);
+  currentRoom = room;
+
+  document.getElementById("login").style.display = "none";
+  document.getElementById("chat").style.display = "flex";
+  document.getElementById("roomTitle").innerText = room;
+
+  const messagesRef = ref(database, "rooms/" + room);
 
   onChildAdded(messagesRef, (data) => {
-    const message = document.createElement("div");
-    message.className = "message";
-    message.textContent = data.val().text;
-    messagesDiv.appendChild(message);
+    const msgData = data.val();
+
+    const msg = document.createElement("div");
+    msg.className = "message " + (msgData.user === username ? "mine" : "other");
+
+    const text = document.createElement("div");
+    text.innerText = msgData.user + ": " + msgData.text;
+
+    const time = document.createElement("div");
+    time.className = "time";
+    time.innerText = msgData.time;
+
+    msg.appendChild(text);
+    msg.appendChild(time);
+
+    const messagesDiv = document.getElementById("messages");
+    messagesDiv.appendChild(msg);
+
+    // авто-скролл
     messagesDiv.scrollTop = messagesDiv.scrollHeight;
   });
+};
+
+window.sendMessage = function() {
+  const input = document.getElementById("messageInput");
+  if(input.value.trim() === "") return;
+
+  const now = new Date();
+  const timeString = now.getHours().toString().padStart(2, '0') + ":" +
+                     now.getMinutes().toString().padStart(2, '0');
+
+  const messagesRef = ref(database, "rooms/" + currentRoom);
+
+  push(messagesRef, {
+    user: username,
+    text: input.value,
+    time: timeString
+  });
+
+  input.value = "";
+};
+</script>
+
+</body>
+</html>
 </script>
 
 </body>

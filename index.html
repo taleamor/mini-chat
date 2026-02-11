@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Mini Chat</title>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js"></script>
+  <style>
+    body {
+      font-family: Arial;
+      margin: 0;
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+    }
+
+    #messages {
+      flex: 1;
+      padding: 10px;
+      overflow-y: auto;
+    }
+
+    .message {
+      margin: 5px 0;
+    }
+
+    #inputArea {
+      display: flex;
+      padding: 10px;
+      border-top: 1px solid #ccc;
+    }
+
+    input {
+      flex: 1;
+      padding: 10px;
+      font-size: 16px;
+    }
+
+    button {
+      padding: 10px;
+      font-size: 16px;
+    }
+  </style>
+</head>
+<body>
+
+<div id="messages"></div>
+
+<div id="inputArea">
+  <input id="messageInput" placeholder="Написать сообщение..." />
+  <button onclick="sendMessage()">Отправить</button>
+</div>
+
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+  import { getDatabase, ref, push, onChildAdded } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+
+  const firebaseConfig = {
+  apiKey: "AIzaSyA64EfxQkGhcCKnxAT_0k_3BTFt5wc6x-E",
+  authDomain: "cochat-18c46.firebaseapp.com",
+  projectId: "cochat-18c46",
+  storageBucket: "cochat-18c46.firebasestorage.app",
+  messagingSenderId: "966021418904",
+  appId: "1:966021418904:web:efdf644f1203088c4025ed",
+  measurementId: "G-RF2C1D9GLE"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const database = getDatabase(app);
+  const messagesRef = ref(database, "messages");
+
+  window.sendMessage = function() {
+    const input = document.getElementById("messageInput");
+    if (input.value.trim() === "") return;
+
+    push(messagesRef, {
+      text: input.value
+    });
+
+    input.value = "";
+  };
+
+  const messagesDiv = document.getElementById("messages");
+
+  onChildAdded(messagesRef, (data) => {
+    const message = document.createElement("div");
+    message.className = "message";
+    message.textContent = data.val().text;
+    messagesDiv.appendChild(message);
+    messagesDiv.scrollTop = messagesDiv.scrollHeight;
+  });
+</script>
+
+</body>
+</html>

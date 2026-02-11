@@ -1,3 +1,10 @@
+self.addEventListener('install', (event) => {
+  self.skipWaiting(); // сразу активировать новый SW при установке
+});
+
+self.addEventListener('activate', (event) => {
+  clients.claim(); // сразу взять управление над всеми открытыми страницами
+});
 const CACHE_NAME = "cochat-v1";
 const urlsToCache = [
   "/",

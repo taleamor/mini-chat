@@ -18,48 +18,54 @@ body {
 
 .container {
   width: 95%;
-  max-width: 500px;
-  height: 95vh;
+  max-width: 480px;
+  height: 96vh;
   background: #2a2a2a;
   border-radius: 20px;
   display: flex;
   flex-direction: column;
-  padding: 15px;
+  padding: 12px;
+  box-sizing: border-box;
+}
+
+h2, h3 {
+  margin: 5px 0;
+  text-align: center;
 }
 
 input {
-  padding: 10px;
-  margin: 5px 0;
-  border-radius: 10px;
+  padding: 8px;
+  margin: 4px 0;
+  border-radius: 8px;
   border: none;
-  font-size: 14px;
+  font-size: 13px;
 }
 
 button {
-  padding: 10px;
+  padding: 8px;
   border: none;
-  border-radius: 10px;
+  border-radius: 8px;
   background-color: #10a37f;
   color: white;
-  font-size: 14px;
-  margin-top: 5px;
+  font-size: 13px;
+  cursor: pointer;
 }
 
 #messages {
   flex: 1;
   overflow-y: auto;
-  margin: 10px 0;
+  margin: 8px 0;
   display: flex;
   flex-direction: column;
 }
 
 .message {
   max-width: 75%;
-  padding: 8px 12px;
+  padding: 8px 10px;
   border-radius: 15px;
-  margin: 5px 0;
+  margin: 4px 0;
   font-size: 13px;
-  word-wrap: break-word;
+  animation: fadeIn 0.2s ease;
 }
 
 .mine {
@@ -70,7 +76,7 @@ button {
 
 .other {
   align-self: flex-start;
-  background: #3b82f6;
+  background: #10a37f;
   color: white;
 }
 
@@ -80,13 +86,48 @@ button {
   margin-top: 3px;
 }
 
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(5px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
 #inputArea {
   display: flex;
+  gap: 5px;
 }
 
 #inputArea input {
   flex: 1;
-  margin-right: 5px;
+}
+
+#typingStatus {
+  font-size: 11px;
+  opacity: 0.7;
+  min-height: 14px;
+}
+
+.chat-history {
+  margin-top: 10px;
+  background: #1f1f1f;
+  border-radius: 10px;
+  padding: 6px;
+  max-height: 120px;
+  overflow-y: auto;
+  font-size: 12px;
+}
+
+.chat-item {
+  padding: 4px;
+  cursor: pointer;
+  border-bottom: 1px solid #333;
+}
+
+.chat-item:last-child {
+  border-bottom: none;
+}
+
+.chat-item:hover {
+  background: #333;
 }
 </style>
 </head>
@@ -98,11 +139,14 @@ button {
   <input id="roomInput" placeholder="Название комнаты">
   <input id="passwordInput" placeholder="Пароль">
   <button onclick="enterChat()">Войти</button>
+
+  <div class="chat-history" id="historyBox"></div>
 </div>
 
 <div id="chat" class="container" style="display:none;">
   <h3 id="roomTitle"></h3>
   <div id="messages"></div>
+  <div id="typingStatus"></div>
   <div id="inputArea">
     <input id="messageInput" placeholder="Сообщение...">
     <button onclick="sendMessage()">➤</button>
@@ -111,12 +155,13 @@ button {
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-import { getDatabase, ref, push, onChildAdded } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+import { getDatabase, ref, push, onChildAdded, set, onValue, remove } 
+from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyA64EfxQkGhcCKnxAT_0k_3BTFt5wc6x-E",
   authDomain: "cochat-18c46.firebaseapp.com",
-  databaseURL: "https://cochat-18c46-default-rtdb.europe-west1.firebasedatabase.app/",
+  databaseURL: "https://cochat-18c46-default-rtdb.europe-west1.firebasedatabase.app",
   projectId: "cochat-18c46",
   storageBucket: "cochat-18c46.firebasestorage.app",
   messagingSenderId: "966021418904",
@@ -128,17 +173,21 @@ const database = getDatabase(app);
 
 let currentRoom = "";
 let username = "";
-const correctPassword = "1234"; // поменяй если нужно
+const correctPassword = "1234";
 
-// Автозаполнение имени
+const usernameInput = document.getElementById("usernameInput");
+const historyBox = document.getElementById("historyBox");
+
 if(localStorage.getItem("username")) {
-  document.getElementById("usernameInput").value = localStorage.getItem("username");
+  usernameInput.value = localStorage.getItem("username");
 }
+
+loadHistory();
 
 window.enterChat = function() {
   const room = document.getElementById("roomInput").value.trim();
   const password = document.getElementById("passwordInput").value;
-  username = document.getElementById("usernameInput").value.trim();
+  username = usernameInput.value.trim();
 
   if(password !== correctPassword) {
     alert("Неверный пароль");
@@ -151,6 +200,8 @@ window.enterChat = function() {
   }
 
   localStorage.setItem("username", username);
+  saveRoom(room);
+
   currentRoom = room;
 
   document.getElementById("login").style.display = "none";
@@ -161,35 +212,35 @@ window.enterChat = function() {
 
   onChildAdded(messagesRef, (data) => {
     const msgData = data.val();
-
-    const msg = document.createElement("div");
-    msg.className = "message " + (msgData.user === username ? "mine" : "other");
-
-    const text = document.createElement("div");
-    text.innerText = msgData.user + ": " + msgData.text;
-
-    const time = document.createElement("div");
-    time.className = "time";
-    time.innerText = msgData.time;
-
-    msg.appendChild(text);
-    msg.appendChild(time);
-
-    const messagesDiv = document.getElementById("messages");
-    messagesDiv.appendChild(msg);
-
-    // авто-скролл
-    messagesDiv.scrollTop = messagesDiv.scrollHeight;
+    displayMessage(msgData);
   });
+
+  setupTyping();
 };
+
+function displayMessage(msgData) {
+  const msg = document.createElement("div");
+  msg.className = "message " + 
+    (msgData.user === username ? "mine" : "other");
+
+  msg.innerHTML = `
+    <div><strong>${msgData.user}</strong>: ${msgData.text}</div>
+    <div class="time">${msgData.time}</div>
+  `;
+
+  const messagesDiv = document.getElementById("messages");
+  messagesDiv.appendChild(msg);
+  messagesDiv.scrollTop = messagesDiv.scrollHeight;
+}
 
 window.sendMessage = function() {
   const input = document.getElementById("messageInput");
   if(input.value.trim() === "") return;
 
   const now = new Date();
-  const timeString = now.getHours().toString().padStart(2, '0') + ":" +
-                     now.getMinutes().toString().padStart(2, '0');
+  const timeString =
+    now.getHours().toString().padStart(2,'0') + ":" +
+    now.getMinutes().toString().padStart(2,'0');
 
   const messagesRef = ref(database, "rooms/" + currentRoom);
 
@@ -200,11 +251,66 @@ window.sendMessage = function() {
   });
 
   input.value = "";
+  stopTyping();
 };
-</script>
 
-</body>
-</html>
+function setupTyping() {
+  const typingRef = ref(database, "typing/" + currentRoom + "/" + username);
+  const statusDiv = document.getElementById("typingStatus");
+  const input = document.getElementById("messageInput");
+
+  input.addEventListener("input", () => {
+    set(typingRef, true);
+    setTimeout(() => remove(typingRef), 1000);
+  });
+
+  const roomTypingRef = ref(database, "typing/" + currentRoom);
+
+  onValue(roomTypingRef, (snapshot) => {
+    const data = snapshot.val();
+    if(!data) {
+      statusDiv.innerText = "";
+      return;
+    }
+
+    const usersTyping = Object.keys(data)
+      .filter(u => u !== username);
+
+    if(usersTyping.length > 0) {
+      statusDiv.innerText = usersTyping.join(", ") + " печатает...";
+    } else {
+      statusDiv.innerText = "";
+    }
+  });
+}
+
+function stopTyping() {
+  const typingRef = ref(database, "typing/" + currentRoom + "/" + username);
+  remove(typingRef);
+}
+
+function saveRoom(room) {
+  let rooms = JSON.parse(localStorage.getItem("rooms")) || [];
+  rooms = rooms.filter(r => r !== room);
+  rooms.unshift(room);
+  if(rooms.length > 5) rooms.pop();
+  localStorage.setItem("rooms", JSON.stringify(rooms));
+  loadHistory();
+}
+
+function loadHistory() {
+  historyBox.innerHTML = "";
+  const rooms = JSON.parse(localStorage.getItem("rooms")) || [];
+  rooms.forEach(room => {
+    const div = document.createElement("div");
+    div.className = "chat-item";
+    div.innerText = room;
+    div.onclick = () => {
+      document.getElementById("roomInput").value = room;
+    };
+    historyBox.appendChild(div);
+  });
+}
 </script>
 
 </body>

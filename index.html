@@ -55,6 +55,23 @@ button { padding:10px; border:none; border-radius:8px; background-color:#10a37f;
     height:52px;
     font-size:22px;
   }
+  #typingIndicator strong{
+  color:#10a37f;
+  font-weight:600;
+}
+
+.typing-dots::after{
+  content:'';
+  animation: dots 1.2s infinite;
+}
+
+@keyframes dots{
+  0%{content:'';}
+  33%{content:'.';}
+  66%{content:'..';}
+  100%{content:'...';}
+}
+
 }
 </style>
 </head>
@@ -74,6 +91,7 @@ button { padding:10px; border:none; border-radius:8px; background-color:#10a37f;
   <div class="back-button" onclick="goBack()">←</div>
   <h3 id="roomTitle"></h3>
   <div id="messages"></div>
+  <div id="typingIndicator" style="height:20px;font-size:12px;opacity:0.7;margin-left:4px;"></div>
   <div id="inputArea">
     <label id="fileInputLabel" for="fileInput">➕</label>
     <input type="file" id="fileInput" accept="image/*,video/*">
@@ -103,6 +121,9 @@ const database = getDatabase(app);
 
 let currentRoom = "";
 let username = "";
+let typingTimeout = null;
+let typingRef = null;
+let currentTypingUser = null;
 let currentListener = null;
 const correctPassword = "1234";
 const FIVE_DAYS = 5 * 24 * 60 * 60 * 1000;
@@ -172,6 +193,39 @@ window.enterChat = async function() {
   document.getElementById("login").style.display="none"; document.getElementById("chat").style.display="flex";
   document.getElementById("roomTitle").innerText=room;
   onChildAdded(messagesRef,(data)=>{ const msgData = data.val(); displayMessage(msgData); });
+  // ===== Подписка на печатает =====
+typingRef = ref(database,"rooms/"+room+"/typing");
+
+onValue(typingRef,(snap)=>{
+  const data = snap.val();
+  const indicator = document.getElementById("typingIndicator");
+
+  if(!data){
+    indicator.innerHTML="";
+    currentTypingUser=null;
+    return;
+  }
+
+  const users = Object.keys(data).filter(u=>data[u]===true && u!==username);
+
+  if(users.length===0){
+    indicator.innerHTML="";
+    currentTypingUser=null;
+    return;
+  }
+
+  if(!currentTypingUser){
+    currentTypingUser = users[0];
+  }
+
+  if(users.includes(currentTypingUser)){
+    indicator.innerHTML = `<strong>${currentTypingUser}</strong> пишет<span class="typing-dots"></span>`;
+  } else {
+    currentTypingUser = users[0];
+    indicator.innerHTML = `<strong>${currentTypingUser}</strong> пишет<span class="typing-dots"></span>`;
+  }
+});
+
   // Подписка на звонки
   const callRef = ref(database, "rooms/"+room+"/call");
   onValue(callRef,(snap)=>{
@@ -188,6 +242,12 @@ window.enterChat = async function() {
 
 /* ===== ПОКАЗ СООБЩЕНИЙ ===== */
 function displayMessage(msgData){
+
+  // Игнорируем служебные данные (call, ice и т.д.)
+  if(!msgData.user || (!msgData.text && msgData.type!=="file")){
+    return;
+  }
+
   const msg=document.createElement("div");
   msg.className="message "+(msgData.user===username?"mine":"other");
 
@@ -219,12 +279,32 @@ function displayMessage(msgData){
 
 /* ===== ОТПРАВКА ===== */
 window.sendMessage=function(){
+  // убрать статус печатает
+if(typingRef){
+  set(ref(database,"rooms/"+currentRoom+"/typing/"+username), false);
+}
   const input=document.getElementById("messageInput");
   if(input.value.trim()==="") return;
   const now=new Date();
   const timeString=now.getHours().toString().padStart(2,'0')+":"+now.getMinutes().toString().padStart(2,'0');
   push(ref(database,"rooms/"+currentRoom),{user:username,text:input.value,time:timeString,timestamp:Date.now()});
   input.value="";
+  // ===== Отслеживание печати =====
+document.getElementById("messageInput").addEventListener("input",()=>{
+
+  if(!currentRoom) return;
+
+  const userTypingRef = ref(database,"rooms/"+currentRoom+"/typing/"+username);
+
+  set(userTypingRef,true);
+
+  clearTimeout(typingTimeout);
+
+  typingTimeout = setTimeout(()=>{
+    set(userTypingRef,false);
+  },2000); // 2 секунды без активности = перестал писать
+});
+
 };
 
 /* ===== ФАЙЛЫ В БАЗУ (СКАЧИВАНИЕ) ===== */

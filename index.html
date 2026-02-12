@@ -502,46 +502,64 @@ async function startCall(isAnswer, peerName) {
     }
   }
 }
-// ===== Фикс для повторных звонков =====
-function endCall(peerName) {
-  if (peerConnections[peerName]) {
-    peerConnections[peerName].close();      // закрываем старое соединение
-    delete peerConnections[peerName];
-  }
-  if (currentPC) {
-    currentPC.close();
-    currentPC = null;
-  }
+// ===== Фикс для повторных звонков + синхронизация =====
+function resetCall() {
   window.inCall = false;
-
-  // удаляем ICE кандидаты, чтобы новый звонок был чистым
-  const iceRef = ref(database, "rooms/" + currentRoom + "/ice/" + username);
-  set(iceRef, null);
+  currentPC?.close();
+  currentPC = null;
+  for (let peer in peerConnections) {
+    peerConnections[peer].close();
+    delete peerConnections[peer];
+  }
+  if(currentRoom){
+    const iceRef = ref(database, "rooms/" + currentRoom + "/ice/" + username);
+    set(iceRef, null);
+    set(ref(database, "rooms/" + currentRoom + "/call"), null); // сброс звонка в базе
+  }
 }
 
-// вызываем при завершении звонка (например, пользователь закрыл окно, ушёл)
-window.addEventListener("beforeunload", () => {
-  endCall(username);
-});
+// Подписка на звонки
+function setupCallListener() {
+  if(!currentRoom) return;
+  if(callRef) off(callRef);
+  callRef = ref(database, "rooms/" + currentRoom + "/call");
+  onValue(callRef, async (snap) => {
+    const callData = snap.val();
+    if(!callData) return;
 
-// патч для кнопки звонка: создаём новое соединение каждый раз
+    // Если нам звонят и мы не в звонке
+    if(callData.to === username && !window.inCall && callData.sdp?.type === "offer"){
+      const accept = confirm(`${callData.from} звонит! Принять звонок?`);
+      if(accept){
+        await startCall(true, callData.from);
+      }
+      resetCall(); // сброс после отклонения/окончания
+    }
+
+    // Если это ответ на наш звонок
+    if(callData.sdp?.type === "answer" && currentPC){
+      await currentPC.setRemoteDescription(new RTCSessionDescription(callData.sdp));
+    }
+  });
+}
+
+// Кнопка звонка
 document.getElementById("callButton").addEventListener("click", async () => {
-  if (window.inCall) {
-    alert("Вы уже в звонке, завершите текущий перед новым");
-    return;
+  if(window.inCall){
+    // сброс, если предыдущий звонок завис
+    resetCall();
   }
   const peer = prompt("Введите имя человека, которому хотите позвонить:");
-  if (peer && peer !== username) {
+  if(peer && peer !== username){
     await startCall(false, peer);
   }
 });
 
-
-// Кнопка звонка
-document.getElementById("callButton").addEventListener("click", () => {
-  const peer = prompt("Введите имя человека, которому хотите позвонить:");
-  if (peer && peer !== username) startCall(false, peer);
+// сброс звонка при уходе со страницы
+window.addEventListener("beforeunload", () => {
+  resetCall();
 });
+
 
 </script>
 

@@ -237,7 +237,7 @@ renderHistory();
 
 /* ===== НАЗАД ===== */
 window.goBack = function() {
-  resetCall();
+  resetCall(true);
 
   if(currentListener){
     off(currentListener);
@@ -422,19 +422,6 @@ document.getElementById("messageInput").addEventListener("input",()=>{
 
 });
 
-document.getElementById("callButton").addEventListener("click", () => {
-
-  if(!currentRoom) return alert("Вы не в комнате");
-
-  if(window.inCall) return alert("Вы уже в звонке");
-
-  const target = prompt("Введите ник пользователя, которому хотите позвонить:");
-
-  if(!target || target.trim() === "") return;
-
-  startCall(false, target.trim());
-
-});
 
 // ===== Кнопка звонка =====
 document.getElementById("callButton").addEventListener("click", async () => {
@@ -442,7 +429,28 @@ document.getElementById("callButton").addEventListener("click", async () => {
 
   // Если уже в звонке — сбрасываем старый
   if(window.inCall){
-    resetCall();
+    function resetCall(stopStream = true) {
+  window.inCall = false;
+
+  currentPC?.close();
+  currentPC = null;
+
+  for (let peer in peerConnections){
+    peerConnections[peer].close();
+    delete peerConnections[peer];
+  }
+
+  if(stopStream && localStream){
+    localStream.getTracks().forEach(track => track.stop());
+    localStream = null;
+  }
+
+  if(currentRoom){
+    set(ref(database, "rooms/" + currentRoom + "/ice/" + username), null);
+    set(ref(database, "rooms/" + currentRoom + "/call"), null);
+  }
+}
+
   }
 
   const target = prompt("Введите ник пользователя, которому хотите позвонить:");

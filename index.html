@@ -191,6 +191,12 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/fireba
 import { getDatabase, ref, push, onChildAdded, remove, get, off, onValue, set } 
 from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
 
+  // ===== ENGINE v2: анти-спам =====
+let lastSendTime = 0;
+
+// ===== ENGINE v2: защита от дублей =====
+const renderedMessages = new Set();
+
 const firebaseConfig = {
   apiKey: "AIzaSyA64EfxQkGhcCKnxAT_0k_3BTFt5wc6x-E",
   authDomain: "cochat-18c46.firebaseapp.com",
@@ -200,6 +206,87 @@ const firebaseConfig = {
   messagingSenderId: "966021418904",
   appId: "1:966021418904:web:efdf644f1203088c4025ed"
 };
+/* ===== v3: Онлайн/офлайн статус ===== */
+let onlineRef = null;
+
+function setOnlineStatus() {
+  if(!currentRoom || !username) return;
+  onlineRef = ref(database, `rooms/${currentRoom}/online/${username}`);
+  set(onlineRef, true);
+
+  // При закрытии вкладки удаляем статус
+  window.addEventListener("beforeunload", () => set(onlineRef, null));
+}
+
+// Слушаем онлайн других пользователей
+function subscribeOnlineUsers() {
+  if(!currentRoom) return;
+  const onlineListRef = ref(database, `rooms/${currentRoom}/online`);
+  onValue(onlineListRef, snap => {
+    const users = snap.val() ? Object.keys(snap.val()) : [];
+    console.log("Онлайн сейчас:", users.filter(u => u !== username).join(", "));
+  });
+}
+
+/* ===== v3: Lazy загрузка последних 50 сообщений ===== */
+async function loadLastMessages(roomRef) {
+  const snapshot = await get(roomRef);
+  if(snapshot.exists()){
+    const data = snapshot.val();
+    const keys = Object.keys(data).sort((a,b) => data[a].timestamp - data[b].timestamp);
+    keys.slice(-50).forEach(key => displayMessage(data[key]));
+  }
+}
+
+/* ===== v3: WebRTC безопасный ICE ===== */
+function setupIceCandidates(pc, peerName) {
+  // отправка кандидатов
+  pc.onicecandidate = (event) => {
+    if(event.candidate){
+      push(ref(database, `rooms/${currentRoom}/ice/${username}_to_${peerName}`), event.candidate.toJSON());
+    }
+  };
+
+  // получение кандидатов
+  const iceRef = ref(database, `rooms/${currentRoom}/ice/${peerName}_to_${username}`);
+  onChildAdded(iceRef, (snap) => {
+    const candidate = snap.val();
+    if(candidate && currentPC){
+      currentPC.addIceCandidate(new RTCIceCandidate(candidate));
+    }
+  });
+}
+
+/* ===== v3: Авто переподключение звонка ===== */
+function setupConnectionState(pc, peerName) {
+  pc.onconnectionstatechange = () => {
+    if(pc.connectionState === "disconnected" || pc.connectionState === "failed"){
+      console.log("Соединение упало, пробуем переподключить...");
+      setTimeout(() => {
+        if(!window.inCall) startCall(false, peerName);
+      }, 2000);
+    }
+    if(pc.connectionState === "closed"){
+      resetCall();
+    }
+  };
+}
+
+/* ===== v3: Уведомления о звонке (более надежно) ===== */
+function subscribeIncomingCalls() {
+  if(!currentRoom) return;
+  const callRef = ref(database, `rooms/${currentRoom}/call`);
+  onValue(callRef, (snap) => {
+    const callData = snap.val();
+    if(callData && callData.to===username && !window.inCall){
+      if(confirm(`${callData.from} звонит! Принять звонок?`)){
+        startCall(true, callData.from); // принял звонок
+      } else {
+        set(ref(database, `rooms/${currentRoom}/call/${callData.from}`), null); // отклонить
+      }
+    }
+  });
+}
 
 const app = initializeApp(firebaseConfig);
 const database = getDatabase(app);
@@ -284,12 +371,19 @@ window.goBack = function() {
 
 /* ===== ВХОД ===== */
 window.enterChat = async function() {
+  if(currentListener){
+  off(currentListener);
+}
   const room = document.getElementById("roomInput").value.trim();
   const password = document.getElementById("passwordInput").value;
   username = document.getElementById("usernameInput").value.trim();
   if(password!==correctPassword) return alert("Неверный пароль");
   if(room===""||username==="") return alert("Введите имя и комнату");
   currentRoom=room; saveToHistory(room);
+  setOnlineStatus();  // v3
+subscribeOnlineUsers(); // v3
+loadLastMessages(ref(database,"rooms/"+room)); // v3
+subscribeIncomingCalls(); // v3
   const messagesRef = ref(database,"rooms/"+room);
   currentListener = messagesRef;
   const snapshot = await get(messagesRef);
@@ -344,6 +438,8 @@ onValue(typingRef, (snap) => {
 
 /* ===== ПОКАЗ СООБЩЕНИЙ ===== */
 function displayMessage(msgData){
+if(msgData.timestamp && renderedMessages.has(msgData.timestamp)) return;
+if(msgData.timestamp) renderedMessages.add(msgData.timestamp);
 
   // Игнорируем служебные данные (call, ice и т.д.)
   if(!msgData.user || (!msgData.text && msgData.type!=="file")){
@@ -388,10 +484,15 @@ if(msgData.user !== username){
   }
 }
 
+if(messagesBox.children.length > 200){
+  messagesBox.removeChild(messagesBox.firstChild);
+}
 }
 
 /* ===== ОТПРАВКА ===== */
 window.sendMessage=function(){
+  if(Date.now() - lastSendTime < 500) return;
+lastSendTime = Date.now();
   // убрать статус печатает
 if(typingRef){
   set(ref(database,"rooms/"+currentRoom+"/typing/"+username), false);
@@ -528,6 +629,16 @@ if(!callPanel){
   currentPC = pc;
   peerConnections[peerName] = pc;
 
+  // v3: безопасные ICE и авто переподключение
+setupIceCandidates(pc, peerName);
+setupConnectionState(pc, peerName);
+
+  pc.onconnectionstatechange = () => {
+  if(pc.connectionState === "closed"){
+    resetCall();
+  }
+};
+
   // Добавляем аудиотреки
   localStream.getTracks().forEach(track => pc.addTrack(track, localStream));
 
@@ -592,17 +703,19 @@ if(!callPanel){
 function resetCall() {
   window.inCall = false;
 
-  currentPC?.close();
-  currentPC = null;
-
-  for (let peer in peerConnections){
-    peerConnections[peer].close();
-    delete peerConnections[peer];
-  }
-
   if(localStream){
     localStream.getTracks().forEach(track => track.stop());
     localStream = null;
+  }
+
+  if(currentPC){
+    currentPC.close();
+    currentPC = null;
+  }
+
+  for (let peer in peerConnections) {
+    peerConnections[peer].close();
+    delete peerConnections[peer];
   }
 
   if(currentRoom){
@@ -610,17 +723,18 @@ function resetCall() {
     set(ref(database, "rooms/" + currentRoom + "/call"), null);
   }
 
-  // удаляем верхнюю панель звонка если есть
-  const panel = document.getElementById("callPanel");
-  if(panel) panel.remove();
+  // Удаляем верхнюю панель если есть
+  const topControls = document.getElementById("callTopControls");
+  if(topControls) topControls.remove();
 
-  // скрываем callControls если используется
-  const controls = document.getElementById("callControls");
-  if(controls) controls.style.display = "none";
-}
+  // Скрываем callControls если используется
+  const callControls = document.getElementById("callControls");
+  if(callControls) callControls.style.display = "none";
 
   // Скрываем экран звонка
-  document.getElementById("callScreen").style.display = "none";
+  const callScreen = document.getElementById("callScreen");
+  if(callScreen) callScreen.style.display = "none";
+}
 
 </script>
 
@@ -630,6 +744,14 @@ if("serviceWorker" in navigator){
     navigator.serviceWorker.register("/sw.js").then(()=>console.log("SW зарегистрирован")).catch(err=>console.log("Ошибка SW:",err));
   });
 }
+window.addEventListener("offline", () => {
+  alert("Нет подключения к интернету");
+});
+
+window.addEventListener("online", () => {
+  console.log("Соединение восстановлено");
+});
+
 </script>
 
 </body>

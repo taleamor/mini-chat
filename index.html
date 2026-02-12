@@ -72,6 +72,11 @@ button { padding:10px; border:none; border-radius:8px; background-color:#10a37f;
   100%{content:'...';}
 }
 
+.brandPalm{
+  margin-bottom:4px;
+  opacity:0.4; /* тот же серый как бренд */
+}
+
 }
 </style>
 </head>
@@ -84,7 +89,31 @@ button { padding:10px; border:none; border-radius:8px; background-color:#10a37f;
   <input id="passwordInput" placeholder="Пароль">
   <button onclick="enterChat()">Войти</button>
   <div class="chat-history" id="historyBox"></div>
-  <div class="footer">MEZENCEV&CO</div>
+  <div class="footer">
+  <div class="brandPalm">
+    <svg viewBox="0 0 100 100" width="28" height="28">
+      <path d="M50 60 L50 90" stroke="white" stroke-width="4" stroke-linecap="round"/>
+      <path d="M50 60 
+               C30 45, 20 40, 10 35
+               M50 60 
+               C70 45, 80 40, 90 35
+               M50 60 
+               C25 55, 15 60, 5 65
+               M50 60 
+               C75 55, 85 60, 95 65
+               M50 60 
+               C35 40, 30 25, 25 15
+               M50 60 
+               C65 40, 70 25, 75 15"
+            stroke="white"
+            stroke-width="4"
+            stroke-linecap="round"
+            fill="none"/>
+    </svg>
+  </div>
+  MEZENCEV&CO
+</div>
+
 </div>
 
 <div id="chat" class="container" style="display:none;">
@@ -176,7 +205,12 @@ function renderHistory() { const box = document.getElementById("historyBox"); bo
 renderHistory();
 
 /* ===== НАЗАД ===== */
-window.goBack=function(){ if(currentListener){ off(currentListener); currentListener=null; } document.getElementById("chat").style.display="none"; document.getElementById("login").style.display="flex"; document.getElementById("messages").innerHTML=""; }
+window.goBack=function(){ if(currentListener){ off(currentListener); currentListener=null; } document.getElementById("chat").style.display="none"; document.getElementById("login").style.display="flex"; document.getElementById("messages").innerHTML="";
+if(currentRoom){
+  set(ref(database,"rooms/"+currentRoom+"/typing/"+username), false);
+}
+
+}
 
 /* ===== ВХОД ===== */
 window.enterChat = async function() {
@@ -193,6 +227,7 @@ window.enterChat = async function() {
   document.getElementById("login").style.display="none"; document.getElementById("chat").style.display="flex";
   document.getElementById("roomTitle").innerText=room;
   onChildAdded(messagesRef,(data)=>{ const msgData = data.val(); displayMessage(msgData); });
+  currentTypingUser = null;
   // ===== Подписка на печатает =====
 typingRef = ref(database,"rooms/"+room+"/typing");
 

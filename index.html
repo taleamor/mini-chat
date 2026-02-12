@@ -147,6 +147,12 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 const database = getDatabase(app);
+if ("Notification" in window) {
+  Notification.requestPermission().then(permission => {
+    console.log("Разрешение на уведомления:", permission);
+  });
+}
+
 
 let currentRoom = "";
 let username = "";
@@ -309,6 +315,17 @@ function displayMessage(msgData){
   } else {
     playReceiveSound();
   }
+  
+// Если сообщение от другого пользователя
+if(msgData.user !== username){
+  // Только если вкладка свернута
+  if(document.hidden && Notification.permission === "granted"){
+    new Notification(`${msgData.user}`, {
+      body: msgData.text || "Файл",
+      icon: '/icon-192.png' // можно использовать иконку бренда
+    });
+  }
+}
 
 }
 

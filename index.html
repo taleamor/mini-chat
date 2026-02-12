@@ -236,12 +236,22 @@ function renderHistory() { const box = document.getElementById("historyBox"); bo
 renderHistory();
 
 /* ===== НАЗАД ===== */
-window.goBack=function(){ if(currentListener){ off(currentListener); currentListener=null; } document.getElementById("chat").style.display="none"; document.getElementById("login").style.display="flex"; document.getElementById("messages").innerHTML="";
-if(currentRoom){
-  set(ref(database,"rooms/"+currentRoom+"/typing/"+username), false);
-}
+window.goBack = function() {
+  resetCall();
 
-}
+  if(currentListener){
+    off(currentListener);
+    currentListener = null;
+  }
+
+  if(currentRoom){
+    set(ref(database,"rooms/"+currentRoom+"/typing/"+username), false);
+  }
+
+  document.getElementById("chat").style.display = "none";
+  document.getElementById("login").style.display = "flex";
+  document.getElementById("messages").innerHTML = "";
+};
 
 /* ===== ВХОД ===== */
 window.enterChat = async function() {
@@ -258,8 +268,6 @@ window.enterChat = async function() {
   document.getElementById("login").style.display="none"; document.getElementById("chat").style.display="flex";
   document.getElementById("roomTitle").innerText=room;
   onChildAdded(messagesRef,(data)=>{ const msgData = data.val(); displayMessage(msgData); });
-  // В конце enterChat
-setupCallListener();
 
   currentTypingUser = null;
   // ===== Подписка на печатает =====
@@ -293,7 +301,7 @@ onValue(typingRef, (snap) => {
 
 
   // Подписка на звонки
-  const callRef = ref(database, "rooms/"+room+"/call");
+  callRef = ref(database, "rooms/"+room+"/call");
   onValue(callRef,(snap)=>{
     const callData = snap.val();
     if(callData && callData.to===username && !window.inCall){
@@ -302,7 +310,6 @@ onValue(typingRef, (snap) => {
       } else {
         set(callRef,null); // отклонить
       }
-      setupCallListener();
     }
   });
 };
@@ -424,7 +431,74 @@ window.inCall = false;
 
 let callRef = null;
 
-// Функция сброса звонка
+// ===== WebRTC звонок (стабильный блок) =====
+async function startCall(isAnswer, peerName) {
+  if(!callRef) callRef = ref(database, "rooms/" + currentRoom + "/call");
+
+  if (!localStream) {
+    try {
+      localStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+    } catch (err) {
+      return alert("Не удалось получить микрофон: " + err.message);
+    }
+  }
+
+  const pc = new RTCPeerConnection(config);
+  currentPC = pc;
+  peerConnections[peerName] = pc;
+
+  // Добавляем аудиотреки
+  localStream.getTracks().forEach(track => pc.addTrack(track, localStream));
+
+  // Воспроизведение потока собеседника
+  pc.ontrack = (e) => {
+    let audio = document.getElementById("remoteAudio_" + peerName);
+    if(!audio){
+      audio = document.createElement("audio");
+      audio.id = "remoteAudio_" + peerName;
+      audio.autoplay = true;
+      document.body.appendChild(audio);
+    }
+    audio.srcObject = e.streams[0];
+  };
+
+  // ICE кандидаты
+  pc.onicecandidate = (event) => {
+    if(event.candidate){
+      push(ref(database, "rooms/" + currentRoom + "/ice/" + peerName), event.candidate.toJSON());
+    }
+  };
+
+  // Получаем ICE кандидаты от собеседника
+  const iceRef = ref(database, "rooms/" + currentRoom + "/ice/" + username);
+  onChildAdded(iceRef, (snap) => {
+    const candidate = snap.val();
+    if(candidate && currentPC){
+      currentPC.addIceCandidate(new RTCIceCandidate(candidate));
+    }
+  });
+
+  if(!isAnswer){
+    // Создаём offer
+    const offer = await pc.createOffer();
+    await pc.setLocalDescription(offer);
+    set(callRef, { from: username, to: peerName, sdp: offer });
+    window.inCall = true;
+  } else {
+    // Принимаем offer
+    const snap = await get(callRef);
+    if(snap.exists()){
+      const data = snap.val();
+      await pc.setRemoteDescription(new RTCSessionDescription(data.sdp));
+      const answer = await pc.createAnswer();
+      await pc.setLocalDescription(answer);
+      set(callRef, { from: username, to: data.from, sdp: answer });
+      window.inCall = true;
+    }
+  }
+}
+
+// ===== Сброс звонка =====
 function resetCall() {
   window.inCall = false;
   currentPC?.close();
@@ -439,51 +513,7 @@ function resetCall() {
   }
 }
 
-// Подписка на звонки — только ОДИН раз
-function setupCallListener() {
-  if(!currentRoom) return;
-  if(callRef) off(callRef);
 
-  callRef = ref(database, "rooms/" + currentRoom + "/call");
-
-  onValue(callRef, async (snap) => {
-    const callData = snap.val();
-    if(!callData) return;
-
-    // Если нам звонят и мы не в звонке
-    if(callData.to === username && !window.inCall && callData.sdp?.type === "offer"){
-      const accept = confirm(`${callData.from} звонит! Принять звонок?`);
-      if(accept){
-        await startCall(true, callData.from);
-      } else {
-        resetCall();
-      }
-    }
-
-    // Если это ответ на наш звонок
-    if(callData.sdp?.type === "answer" && currentPC){
-      await currentPC.setRemoteDescription(new RTCSessionDescription(callData.sdp));
-    }
-  });
-}
-
-// Кнопка звонка — только один обработчик
-document.getElementById("callButton").addEventListener("click", async () => {
-  if(window.inCall){
-    alert("Вы уже в звонке. Завершите текущий, чтобы начать новый");
-    return;
-  }
-
-  const peer = prompt("Введите имя человека, которому хотите позвонить:");
-  if(peer && peer !== username){
-    await startCall(false, peer);
-  }
-});
-
-// сброс звонка при уходе со страницы
-window.addEventListener("beforeunload", () => {
-  resetCall();
-});
 
 
 

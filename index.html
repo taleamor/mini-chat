@@ -436,6 +436,20 @@ document.getElementById("callButton").addEventListener("click", () => {
 
 });
 
+// ===== Кнопка звонка =====
+document.getElementById("callButton").addEventListener("click", async () => {
+  if(!currentRoom) return alert("Вы не в комнате");
+
+  // Если уже в звонке — сбрасываем старый
+  if(window.inCall){
+    resetCall();
+  }
+
+  const target = prompt("Введите ник пользователя, которому хотите позвонить:");
+  if(!target || target.trim() === "") return;
+
+  await startCall(false, target.trim());
+});
 
 // ===== WebRTC звонок =====
 const peerConnections = {};
@@ -443,17 +457,16 @@ const config = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
 let localStream = null;
 let currentPC = null;
 window.inCall = false;
-
 let callRef = null;
 
-// ===== WebRTC звонок (стабильный блок) =====
 async function startCall(isAnswer, peerName) {
   if(!callRef) callRef = ref(database, "rooms/" + currentRoom + "/call");
 
-  if (!localStream) {
+  // Получаем микрофон, если ещё нет
+  if(!localStream){
     try {
       localStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
-    } catch (err) {
+    } catch(err){
       return alert("Не удалось получить микрофон: " + err.message);
     }
   }
@@ -497,16 +510,18 @@ async function startCall(isAnswer, peerName) {
     // Создаём offer
     const offer = await pc.createOffer();
     await pc.setLocalDescription(offer);
-    await set(callRef, { from: username, to: peerName, sdp: offer });
+    set(callRef, { from: username, to: peerName, sdp: offer });
     window.inCall = true;
+
+    // Слушаем ответ
     onValue(callRef, async (snap) => {
-    const data = snap.val();
-    if(data && data.sdp && data.from === peerName){
-      if(!pc.currentRemoteDescription){
-        await pc.setRemoteDescription(new RTCSessionDescription(data.sdp));
+      const data = snap.val();
+      if(data && data.sdp && data.from === peerName){
+        if(!pc.currentRemoteDescription){
+          await pc.setRemoteDescription(new RTCSessionDescription(data.sdp));
+        }
       }
-    }
-  });
+    });
   } else {
     // Принимаем offer
     const snap = await get(callRef);
@@ -524,17 +539,26 @@ async function startCall(isAnswer, peerName) {
 // ===== Сброс звонка =====
 function resetCall() {
   window.inCall = false;
+
   currentPC?.close();
   currentPC = null;
-  for (let peer in peerConnections) {
+
+  for (let peer in peerConnections){
     peerConnections[peer].close();
     delete peerConnections[peer];
   }
+
+  if(localStream){
+    localStream.getTracks().forEach(track => track.stop());
+    localStream = null;
+  }
+
   if(currentRoom){
     set(ref(database, "rooms/" + currentRoom + "/ice/" + username), null);
     set(ref(database, "rooms/" + currentRoom + "/call"), null);
   }
 }
+
 
 
 

@@ -78,7 +78,7 @@ button { padding:10px; border:none; border-radius:8px; background-color:#10a37f;
 }
 
 .delete-warning {
-  text-align: left;               /* немного влево от центра */
+  text-align: center;        /* центрируем точно над пальмой */
   font-size: 12px;
   color: #10a37f;
   opacity: 0.7;
@@ -86,13 +86,14 @@ button { padding:10px; border:none; border-radius:8px; background-color:#10a37f;
   font-family: Arial, sans-serif;
   line-height: 1.3em;
   word-wrap: break-word;
-  max-width: 80%;
-  margin-bottom: 6px;             /* поднимаем над пальмой */
-  margin-left: 6px;               /* немного смещаем влево */
+  max-width: 90%;            /* чтобы текст не упирался в края */
+  margin: 0 auto 6px auto;   /* сверху 0, снизу 6px от пальмы */
 }
+
 .delete-warning div {
-  text-transform: lowercase;      /* все буквы одинакового роста */
+  text-transform: lowercase; /* все буквы одинакового роста */
 }
+
 
 
 

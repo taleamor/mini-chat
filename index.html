@@ -237,35 +237,32 @@ window.enterChat = async function() {
   // ===== Подписка на печатает =====
 typingRef = ref(database,"rooms/"+room+"/typing");
 
-onValue(typingRef,(snap)=>{
-  const data = snap.val();
-  const indicator = document.getElementById("typingIndicator");
+onValue(typingRef, (snap) => {
+    const data = snap.val() || {};
+    const indicator = document.getElementById("typingIndicator");
+    const users = Object.keys(data).filter(u => data[u] === true && u !== username);
 
-  if(!data){
-    indicator.innerHTML="";
-    currentTypingUser=null;
-    return;
-  }
-
-  const users = Object.keys(data).filter(u=>data[u]===true && u!==username);
-
-  if(users.length===0){
-    indicator.innerHTML="";
-    currentTypingUser=null;
-    return;
-  }
-
-  if(!currentTypingUser){
-    currentTypingUser = users[0];
-  }
-
-  if(users.includes(currentTypingUser)){
-    indicator.innerHTML = `<strong>${currentTypingUser}</strong> пишет<span class="typing-dots"></span>`;
-  } else {
-    currentTypingUser = users[0];
-    indicator.innerHTML = `<strong>${currentTypingUser}</strong> пишет<span class="typing-dots"></span>`;
-  }
+    if(users.length > 0){
+        // если currentTypingUser не в списке, берём первого нового
+        if(!currentTypingUser || !users.includes(currentTypingUser)){
+            currentTypingUser = users[0];
+        }
+        indicator.innerHTML = `<strong>${currentTypingUser}</strong> пишет<span class="typing-dots"></span>`;
+    } else {
+        // задержка перед очисткой индикатора, чтобы не исчезал мгновенно
+        setTimeout(() => {
+            // перепроверяем данные, чтобы ник реально пропал
+            if(typingRef){
+                const stillTyping = Object.keys(data).filter(u => data[u] === true && u !== username);
+                if(stillTyping.length === 0){
+                    indicator.innerHTML = "";
+                    currentTypingUser = null;
+                }
+            }
+        }, 800); // 0.8 секунды задержки
+    }
 });
+
 
   // Подписка на звонки
   const callRef = ref(database, "rooms/"+room+"/call");
@@ -315,7 +312,7 @@ function displayMessage(msgData){
   } else {
     playReceiveSound();
   }
-  
+
 // Если сообщение от другого пользователя
 if(msgData.user !== username){
   // Только если вкладка свернута

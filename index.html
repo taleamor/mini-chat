@@ -497,8 +497,16 @@ async function startCall(isAnswer, peerName) {
     // Создаём offer
     const offer = await pc.createOffer();
     await pc.setLocalDescription(offer);
-    set(callRef, { from: username, to: peerName, sdp: offer });
+    await set(callRef, { from: username, to: peerName, sdp: offer });
     window.inCall = true;
+    onValue(callRef, async (snap) => {
+    const data = snap.val();
+    if(data && data.sdp && data.from === peerName){
+      if(!pc.currentRemoteDescription){
+        await pc.setRemoteDescription(new RTCSessionDescription(data.sdp));
+      }
+    }
+  });
   } else {
     // Принимаем offer
     const snap = await get(callRef);

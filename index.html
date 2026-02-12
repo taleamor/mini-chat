@@ -112,6 +112,22 @@ button { padding:10px; border:none; border-radius:8px; background-color:#10a37f;
   margin-top:6px;
   border-radius:8px;
 }
+#callControls {
+  display:flex;
+  position:sticky;
+  top:6px;
+  z-index:100;
+}
+
+#callControls button {
+  padding:10px;
+  border:none;
+  border-radius:8px;
+  background-color:#10a37f;
+  color:white;
+  font-size:14px;
+  cursor:pointer;
+}
 
 
 
@@ -164,6 +180,10 @@ button { padding:10px; border:none; border-radius:8px; background-color:#10a37f;
 <div id="chat" class="container" style="display:none;">
   <div class="back-button" onclick="goBack()">←</div>
   <h3 id="roomTitle"></h3>
+  <div id="callControls" style="display:none; justify-content:flex-end; gap:6px; margin-bottom:4px;">
+  <button id="muteBtn">Выкл. микрофон</button>
+  <button id="hangUpBtn">Сбросить вызов</button>
+</div>
   <div id="messages"></div>
   <div id="typingIndicator" style="height:20px;font-size:12px;opacity:0.7;margin-left:4px;"></div>
   <div id="inputArea">
@@ -505,6 +525,39 @@ async function startCall(isAnswer, peerName) {
       return alert("Не удалось получить микрофон: " + err.message);
     }
   }
+// === панель звонка сверху ===
+let callPanel = document.getElementById("callPanel");
+if(!callPanel){
+  callPanel = document.createElement("div");
+  callPanel.id = "callPanel";
+  callPanel.style.position = "absolute";
+  callPanel.style.top = "10px";
+  callPanel.style.left = "50%";
+  callPanel.style.transform = "translateX(-50%)";
+  callPanel.style.display = "flex";
+  callPanel.style.gap = "10px";
+  callPanel.style.zIndex = "999";
+  document.body.appendChild(callPanel);
+
+  // кнопка Мут
+  const muteBtn = document.createElement("button");
+  muteBtn.innerText = "Мут";
+  muteBtn.className = "call-button"; // можно использовать твой стиль кнопки
+  muteBtn.onclick = () => {
+    if(localStream){
+      localStream.getAudioTracks().forEach(track => track.enabled = !track.enabled);
+      muteBtn.innerText = localStream.getAudioTracks()[0].enabled ? "Мут" : "Вкл";
+    }
+  };
+  callPanel.appendChild(muteBtn);
+
+  // кнопка Сброс
+  const dropBtn = document.createElement("button");
+  dropBtn.innerText = "Сброс";
+  dropBtn.className = "call-button"; 
+  dropBtn.onclick = () => { resetCall(); callPanel.remove(); };
+  callPanel.appendChild(dropBtn);
+}
 
   const pc = new RTCPeerConnection(config);
   currentPC = pc;

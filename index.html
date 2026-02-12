@@ -194,16 +194,6 @@ button { padding:10px; border:none; border-radius:8px; background-color:#10a37f;
     <button onclick="sendMessage()">➤</button>
   </div>
 </div>
-<!-- ===== ЭКРАН ЗВОНКА ===== -->
-<div id="callScreen" class="container" style="display:none;">
-  <div class="back-button" onclick="hangUp()">←</div>
-  <h3 id="callWith"></h3>
-  <audio id="remoteAudio" autoplay></audio>
-  <div style="display:flex; gap:4px; margin-top:6px;">
-    <button id="muteBtn">Выкл. микрофон</button>
-    <button id="hangUpBtn">Сбросить вызов</button>
-  </div>
-</div>
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";

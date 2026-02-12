@@ -9,6 +9,7 @@
 <meta name="theme-color" content="#10a37f">
 
 <style>
+/* === Стили остались без изменений, только добавим кнопку звонка чуть больше === */
 body { margin:0; font-family: Arial, sans-serif; background-color: #2a2a2a; color: white; display:flex; justify-content:center; align-items:flex-start; min-height:100vh; overflow-x:hidden;}
 .container { width:94%; max-width:460px; height:100vh; background:#2a2a2a; border-radius:18px; display:flex; flex-direction:column; padding:10px; box-sizing:border-box; position:relative;}
 h2,h3 { margin:4px 0; text-align:center;}
@@ -24,18 +25,36 @@ button { padding:10px; border:none; border-radius:8px; background-color:#10a37f;
 #inputArea { display:flex; gap:4px; flex-shrink:0;}
 #inputArea input { flex:1; border-radius:8px; padding:7px;}
 #fileInputLabel { background-color:#10a37f; color:white; border-radius:8px; display:flex; align-items:center; justify-content:center; width:40px; cursor:pointer; font-size:18px;}
-#callButton { background-color:#28a745; width:40px; font-size:18px; display:flex; justify-content:center; align-items:center;}
+#callButton { background-color:#28a745; width:40px; font-size:18px; display:flex; justify-content:center; align-items:center;} /* кнопка звонка */
 #fileInput { display:none;}
 .chat-history { margin-top:8px; background:#1f1f1f; border-radius:10px; padding:6px; max-height:100px; overflow-y:auto; font-size:12px;}
 .chat-item { padding:4px; cursor:pointer; border-bottom:1px solid #333;}
 .chat-item:last-child { border-bottom:none;}
 .chat-item:hover { background:#333;}
 .footer { position:absolute; bottom:6px; width:100%; text-align:center; font-size:10px; opacity:0.4;}
+/* ===== МОБИЛЬНАЯ АДАПТАЦИЯ ===== */
 @media (max-width: 600px) {
-  input { font-size:16px; padding:12px;}
-  button { font-size:16px; padding:14px;}
-  .message { font-size:15px; padding:10px 14px;}
-  #fileInputLabel, #callButton { width:52px; height:52px; font-size:22px;}
+  input {
+    font-size:16px;
+    padding:12px;
+  }
+
+  button {
+    font-size:16px;
+    padding:14px;
+  }
+
+  .message {
+    font-size:15px;
+    padding:10px 14px;
+  }
+
+  #fileInputLabel,
+  #callButton {
+    width:52px;
+    height:52px;
+    font-size:22px;
+  }
 }
 </style>
 </head>
@@ -55,11 +74,10 @@ button { padding:10px; border:none; border-radius:8px; background-color:#10a37f;
   <div class="back-button" onclick="goBack()">←</div>
   <h3 id="roomTitle"></h3>
   <div id="messages"></div>
-  <div id="typingStatus" style="font-size:12px;opacity:0.6;height:16px;margin-left:4px;"></div>
   <div id="inputArea">
     <label id="fileInputLabel" for="fileInput">➕</label>
     <input type="file" id="fileInput" accept="image/*,video/*">
-    <input id="messageInput" placeholder="Сообщение..." oninput="userTyping()">
+    <input id="messageInput" placeholder="Сообщение...">
     <button id="callButton">📞</button>
     <button onclick="sendMessage()">➤</button>
   </div>
@@ -86,155 +104,63 @@ const database = getDatabase(app);
 let currentRoom = "";
 let username = "";
 let currentListener = null;
-let typingTimeout; // <-- глобальная переменная для статуса "печатает..."
-
-// ===== ЗВУКИ =====
-const sendSound = new Audio("https://actions.google.com/sounds/v1/cartoon/wood_plank_flicks.ogg");
-const receiveSound = new Audio("https://actions.google.com/sounds/v1/cartoon/pop.ogg");
 const correctPassword = "1234";
 const FIVE_DAYS = 5 * 24 * 60 * 60 * 1000;
 
 /* ===== ИСТОРИЯ ===== */
-function saveToHistory(room){ let history = JSON.parse(localStorage.getItem("chatHistory"))||[]; history=history.filter(r=>r!==room); history.unshift(room); if(history.length>5) history.pop(); localStorage.setItem("chatHistory",JSON.stringify(history)); renderHistory();}
-function renderHistory(){ const box=document.getElementById("historyBox"); box.innerHTML=""; const history=JSON.parse(localStorage.getItem("chatHistory"))||[]; history.forEach(room=>{const div=document.createElement("div"); div.className="chat-item"; div.innerText=room; div.onclick=()=>{document.getElementById("roomInput").value=room;}; box.appendChild(div);}); }
+function saveToHistory(room) { let history = JSON.parse(localStorage.getItem("chatHistory")) || []; history = history.filter(r => r !== room); history.unshift(room); if(history.length>5) history.pop(); localStorage.setItem("chatHistory", JSON.stringify(history)); renderHistory();}
+function renderHistory() { const box = document.getElementById("historyBox"); box.innerHTML=""; const history=JSON.parse(localStorage.getItem("chatHistory"))||[]; history.forEach(room=>{const div=document.createElement("div"); div.className="chat-item"; div.innerText=room; div.onclick=()=>{document.getElementById("roomInput").value=room;}; box.appendChild(div);}); }
 renderHistory();
 
 /* ===== НАЗАД ===== */
 window.goBack=function(){ if(currentListener){ off(currentListener); currentListener=null; } document.getElementById("chat").style.display="none"; document.getElementById("login").style.display="flex"; document.getElementById("messages").innerHTML=""; }
 
-/* ===== ПОДПИСКА НА СООБЩЕНИЯ И ПЕЧАТАЕТ ===== */
+/* ===== ВХОД ===== */
 window.enterChat = async function() {
   const room = document.getElementById("roomInput").value.trim();
   const password = document.getElementById("passwordInput").value;
   username = document.getElementById("usernameInput").value.trim();
   if(password!==correctPassword) return alert("Неверный пароль");
   if(room===""||username==="") return alert("Введите имя и комнату");
-
-  currentRoom=room; 
-  saveToHistory(room);
-
+  currentRoom=room; saveToHistory(room);
   const messagesRef = ref(database,"rooms/"+room);
   currentListener = messagesRef;
-
-  // Проверка старых сообщений
   const snapshot = await get(messagesRef);
-  if(snapshot.exists()){ 
-    const data = snapshot.val(); 
-    const keys=Object.keys(data); 
-    const lastMsg=data[keys[keys.length-1]]; 
-    if(Date.now()-lastMsg.timestamp>FIVE_DAYS){ 
-      await remove(messagesRef); 
-    } 
-  }
-
-  document.getElementById("login").style.display="none"; 
-  document.getElementById("chat").style.display="flex";
+  if(snapshot.exists()){ const data = snapshot.val(); const keys=Object.keys(data); const lastMsg=data[keys[keys.length-1]]; if(Date.now()-lastMsg.timestamp>FIVE_DAYS){ await remove(messagesRef); } }
+  document.getElementById("login").style.display="none"; document.getElementById("chat").style.display="flex";
   document.getElementById("roomTitle").innerText=room;
-
-  // Подписка на новые сообщения
-  onChildAdded(messagesRef,(data)=>{
-    const msgData = data.val();
-    const key = data.key;
-
-    // если сообщение не наше — отмечаем как прочитанное
-    if(msgData.user !== username){
-      set(ref(database,"rooms/"+currentRoom+"/"+key+"/readBy/"+username),true);
-    }
-
-    displayMessage(msgData,key);
-  });
-
-  // ===== АВТООЧИСТКА (макс 500 сообщений) =====
-  onValue(messagesRef, async (snap)=>{
-    const data = snap.val();
-    if(!data) return;
-
-    const keys = Object.keys(data);
-    if(keys.length > 500){
-      const excess = keys.length - 500;
-      for(let i=0;i<excess;i++){
-        await remove(ref(database,"rooms/"+room+"/"+keys[i]));
-      }
-    }
-  });
-
-  // ===== ПЕЧАТАЕТ =====
-  const typingRef = ref(database,"rooms/"+room+"/typing");
-  onValue(typingRef,(snap)=>{
-    const data = snap.val() || {};
-    const usersTyping = Object.keys(data).filter(u => u !== username);
-
-    const statusDiv = document.getElementById("typingStatus");
-    if(usersTyping.length === 0){
-      statusDiv.innerText = "";
-    } else if(usersTyping.length === 1){
-      statusDiv.innerText = usersTyping[0] + " печатает...";
-    } else {
-      statusDiv.innerText = "Несколько человек печатают...";
-    }
-  });
-
+  onChildAdded(messagesRef,(data)=>{ const msgData = data.val(); displayMessage(msgData); });
   // Подписка на звонки
   const callRef = ref(database, "rooms/"+room+"/call");
   onValue(callRef,(snap)=>{
     const callData = snap.val();
     if(callData && callData.to===username && !window.inCall){
       if(confirm(`${callData.from} звонит! Принять звонок?`)){
-        startCall(true,callData.from);
+        startCall(true,callData.from); // принял звонок
       } else {
-        set(callRef,null);
+        set(callRef,null); // отклонить
       }
     }
   });
 };
 
-/* ===== ФУНКЦИЯ userTyping ===== */
-window.userTyping = function(){
-  if(!currentRoom) return; // защита на случай, если комнаты нет
-  const typingRef = ref(database,"rooms/"+currentRoom+"/typing/"+username);
-
-  set(typingRef,true); // ставим, что пользователь печатает
-
-  clearTimeout(typingTimeout); // сбрасываем предыдущий таймер
-
-  typingTimeout = setTimeout(()=>{
-    set(typingRef,null); // удаляем через 2 секунды, если пользователь перестал печатать
-  },2000);
-};
-
 /* ===== ПОКАЗ СООБЩЕНИЙ ===== */
-function displayMessage(msgData,key){
+function displayMessage(msgData){
   const msg=document.createElement("div");
   msg.className="message "+(msgData.user===username?"mine":"other");
-
-  let readMark="";
-  if(msgData.user===username){
-    if(msgData.readBy && Object.keys(msgData.readBy).length > 1){
-      readMark="✔✔";
-    } else {
-      readMark="✔";
-    }
-  }
 
   if(msgData.type==="file"){
     msg.innerHTML=`
       📎 <a href="${msgData.fileData}" download="${msgData.fileName}" style="color:inherit;text-decoration:underline;">
       Скачать ${msgData.fileName}
       </a>
-      <div class="time">${msgData.time} ${readMark}</div>
+      <div class="time">${msgData.time}</div>
     `;
   } else {
     msg.innerHTML=`
       <div><strong>${msgData.user}</strong>: ${msgData.text}</div>
-      <div class="time">${msgData.time} ${readMark}</div>
+      <div class="time">${msgData.time}</div>
     `;
-  }
-
-  // звук получения и отметка "прочитано"
-  if(msgData.user !== username){
-    set(ref(database,"rooms/"+currentRoom+"/"+key+"/readBy/"+username),true);
-    receiveSound.currentTime = 0;
-    receiveSound.play();
   }
 
   const messagesBox=document.getElementById("messages");
@@ -246,80 +172,90 @@ function displayMessage(msgData,key){
 window.sendMessage=function(){
   const input=document.getElementById("messageInput");
   if(input.value.trim()==="") return;
-
   const now=new Date();
   const timeString=now.getHours().toString().padStart(2,'0')+":"+now.getMinutes().toString().padStart(2,'0');
-
-  push(ref(database,"rooms/"+currentRoom+"/messages"),{
-    user:username,
-    text:input.value,
-    time:timeString,
-    timestamp:Date.now(),
-    readBy:{ [username]:true },
-    type:"text"
-  });
-
+  push(ref(database,"rooms/"+currentRoom),{user:username,text:input.value,time:timeString,timestamp:Date.now()});
   input.value="";
-  sendSound.currentTime=0; sendSound.play();
 };
 
-window.userTyping=function(){
-  const typingRef=ref(database,"rooms/"+currentRoom+"/typing/"+username);
-  set(typingRef,true);
-  clearTimeout(typingTimeout);
-  typingTimeout=setTimeout(()=>{ set(typingRef,null); },2000);
-};
-
-/* ===== ФАЙЛЫ В БАЗУ (скачивание) ===== */
+/* ===== ФАЙЛЫ В БАЗУ (СКАЧИВАНИЕ) ===== */
 document.getElementById("fileInput").addEventListener("change",(e)=>{
-  const file=e.target.files[0];
+  const file = e.target.files[0];
   if(!file) return;
-  if(file.size>5*1024*1024){ alert("Файл слишком большой (макс 5MB)"); return; }
 
-  const reader=new FileReader();
-  reader.onload=function(event){
-    push(ref(database,"rooms/"+currentRoom+"/messages"),{
+  // ограничим размер (чтобы база не взорвалась)
+  if(file.size > 5 * 1024 * 1024){
+    alert("Файл слишком большой (макс 5MB)");
+    return;
+  }
+
+  const reader = new FileReader();
+
+  reader.onload = function(event){
+    push(ref(database,"rooms/"+currentRoom),{
       user:username,
       type:"file",
       fileName:file.name,
       fileData:event.target.result,
       time:new Date().toLocaleTimeString(),
-      timestamp:Date.now(),
-      readBy:{ [username]:true }
+      timestamp:Date.now()
     });
   };
+
   reader.readAsDataURL(file);
   e.target.value="";
 });
 
 /* ===== WebRTC звонок ===== */
-const peerConnections={};
-const config={iceServers:[{urls:'stun:stun.l.google.com:19302'}]};
+const peerConnections = {};
+const config = {iceServers:[{urls:'stun:stun.l.google.com:19302'}]};
 let localStream;
 window.inCall=false;
 
 async function startCall(isAnswer,peerName){
-  if(!localStream) localStream=await navigator.mediaDevices.getUserMedia({audio:true,video:false});
-  const pc=new RTCPeerConnection(config);
+  if(!localStream){
+    localStream = await navigator.mediaDevices.getUserMedia({audio:true,video:false});
+  }
+  const pc = new RTCPeerConnection(config);
   peerConnections[peerName]=pc;
   localStream.getTracks().forEach(track=>pc.addTrack(track,localStream));
+  pc.ontrack=(e)=>{ const audio = document.createElement("audio"); audio.srcObject=e.streams[0]; audio.autoplay=true; document.body.appendChild(audio);}
+  pc.onicecandidate=(event)=>{ if(event.candidate){ push(ref(database,"rooms/"+currentRoom+"/ice/"+peerName),event.candidate.toJSON()); }};
+  // подписка на кандидаты
+  // Подписка на звонки
+const callRef = ref(database, "rooms/"+room+"/call");
 
-  pc.ontrack=(e)=>{ const audio=document.createElement("audio"); audio.srcObject=e.streams[0]; audio.autoplay=true; document.body.appendChild(audio); }
+onValue(callRef, async (snap)=>{
+  const callData = snap.val();
+  if(!callData) return;
 
-  pc.onicecandidate=(event)=>{ if(event.candidate) push(ref(database,"rooms/"+currentRoom+"/ice/"+peerName),event.candidate.toJSON()); };
+  // если нам звонят
+  if(callData.to===username && !window.inCall && callData.sdp?.type==="offer"){
+    if(confirm(`${callData.from} звонит! Принять звонок?`)){
+      await startCall(true,callData.from);
+    } else {
+      set(callRef,null);
+    }
+  }
+
+  // если это ответ на наш звонок
+  if(callData.sdp?.type==="answer" && window.currentPC){
+    await window.currentPC.setRemoteDescription(new RTCSessionDescription(callData.sdp));
+  }
+});
 
   if(!isAnswer){
-    const offer=await pc.createOffer();
+    const offer = await pc.createOffer();
     await pc.setLocalDescription(offer);
     set(ref(database,"rooms/"+currentRoom+"/call"),{from:username,to:peerName,sdp:offer});
     window.inCall=true;
   } else {
-    const callRef=ref(database,"rooms/"+currentRoom+"/call");
-    const snap=await get(callRef);
+    const callRef = ref(database,"rooms/"+currentRoom+"/call");
+    const snap = await get(callRef);
     if(snap.exists()){
-      const data=snap.val();
+      const data = snap.val();
       await pc.setRemoteDescription(new RTCSessionDescription(data.sdp));
-      const answer=await pc.createAnswer();
+      const answer = await pc.createAnswer();
       await pc.setLocalDescription(answer);
       set(callRef,{from:username,to:data.from,sdp:answer});
       window.inCall=true;
@@ -329,14 +265,16 @@ async function startCall(isAnswer,peerName){
 
 /* ===== КНОПКА ЗВОНОК ===== */
 document.getElementById("callButton").addEventListener("click",()=>{
-  const peer=prompt("Введите имя человека, которому хотите позвонить:");
+  const peer = prompt("Введите имя человека, которому хотите позвонить:");
   if(peer && peer!==username) startCall(false,peer);
 });
 </script>
 
 <script>
 if("serviceWorker" in navigator){
-  window.addEventListener("load",()=>{ navigator.serviceWorker.register("/sw.js").then(()=>console.log("SW зарегистрирован")).catch(err=>console.log("Ошибка SW:",err)); });
+  window.addEventListener("load",()=>{
+    navigator.serviceWorker.register("/sw.js").then(()=>console.log("SW зарегистрирован")).catch(err=>console.log("Ошибка SW:",err));
+  });
 }
 </script>
 

@@ -78,17 +78,23 @@ button { padding:10px; border:none; border-radius:8px; background-color:#10a37f;
 }
 
 .delete-warning {
-  text-align: center;           /* Текст ровно по центру */
-  font-size: 12px;              /* Небольшой, читаемый */
-  color: #10a37f;               /* Цвет бренда */
-  opacity: 0.7;                 /* Спокойный визуально */
-  margin-bottom: 12px;          /* Отступ от пальмы, не прижато */
-  font-weight: 500;             /* Чуть жирнее для видимости */
+  text-align: left;               /* немного влево от центра */
+  font-size: 12px;
+  color: #10a37f;
+  opacity: 0.7;
+  font-weight: 500;
   font-family: Arial, sans-serif;
-  line-height: 1.3em;           /* Для удобного переноса на вторую строку */
-  word-wrap: break-word;         /* Позволяет переносить длинный текст */
-  max-width: 90%;               /* Чтобы не упиралось в края */
+  line-height: 1.3em;
+  word-wrap: break-word;
+  max-width: 80%;
+  margin-bottom: 6px;             /* поднимаем над пальмой */
+  margin-left: 6px;               /* немного смещаем влево */
 }
+.delete-warning div {
+  text-transform: lowercase;      /* все буквы одинакового роста */
+}
+
+
 
 
 }
@@ -105,7 +111,8 @@ button { padding:10px; border:none; border-radius:8px; background-color:#10a37f;
   <div class="chat-history" id="historyBox"></div>
   <div class="footer">
   <div class="delete-warning">
-    Комната удаляется через 5 дней без активности
+    <div>комната удаляется через</div>
+    <div>5 дней без активности</div>
   </div>
   <div class="brandPalm">
     <svg viewBox="0 0 100 100" width="42" height="42">

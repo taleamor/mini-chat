@@ -502,6 +502,40 @@ async function startCall(isAnswer, peerName) {
     }
   }
 }
+// ===== Фикс для повторных звонков =====
+function endCall(peerName) {
+  if (peerConnections[peerName]) {
+    peerConnections[peerName].close();      // закрываем старое соединение
+    delete peerConnections[peerName];
+  }
+  if (currentPC) {
+    currentPC.close();
+    currentPC = null;
+  }
+  window.inCall = false;
+
+  // удаляем ICE кандидаты, чтобы новый звонок был чистым
+  const iceRef = ref(database, "rooms/" + currentRoom + "/ice/" + username);
+  set(iceRef, null);
+}
+
+// вызываем при завершении звонка (например, пользователь закрыл окно, ушёл)
+window.addEventListener("beforeunload", () => {
+  endCall(username);
+});
+
+// патч для кнопки звонка: создаём новое соединение каждый раз
+document.getElementById("callButton").addEventListener("click", async () => {
+  if (window.inCall) {
+    alert("Вы уже в звонке, завершите текущий перед новым");
+    return;
+  }
+  const peer = prompt("Введите имя человека, которому хотите позвонить:");
+  if (peer && peer !== username) {
+    await startCall(false, peer);
+  }
+});
+
 
 // Кнопка звонка
 document.getElementById("callButton").addEventListener("click", () => {

@@ -93,6 +93,26 @@ button { padding:10px; border:none; border-radius:8px; background-color:#10a37f;
 .delete-warning div {
   text-transform: lowercase; /* все буквы одинакового роста */
 }
+#callScreen button {
+  padding:10px;
+  border:none;
+  border-radius:8px;
+  background-color:#10a37f;
+  color:white;
+  font-size:14px;
+  cursor:pointer;
+  flex:1;
+}
+#callScreen h3 {
+  text-align:center;
+  margin:4px 0;
+}
+#callScreen audio {
+  width:100%;
+  margin-top:6px;
+  border-radius:8px;
+}
+
 
 
 
@@ -152,6 +172,16 @@ button { padding:10px; border:none; border-radius:8px; background-color:#10a37f;
     <input id="messageInput" placeholder="Сообщение...">
     <button id="callButton">📞</button>
     <button onclick="sendMessage()">➤</button>
+  </div>
+</div>
+<!-- ===== ЭКРАН ЗВОНКА ===== -->
+<div id="callScreen" class="container" style="display:none;">
+  <div class="back-button" onclick="hangUp()">←</div>
+  <h3 id="callWith"></h3>
+  <audio id="remoteAudio" autoplay></audio>
+  <div style="display:flex; gap:4px; margin-top:6px;">
+    <button id="muteBtn">Выкл. микрофон</button>
+    <button id="hangUpBtn">Сбросить вызов</button>
   </div>
 </div>
 
@@ -423,41 +453,38 @@ document.getElementById("messageInput").addEventListener("input",()=>{
 });
 
 
-// ===== Кнопка звонка =====
 document.getElementById("callButton").addEventListener("click", async () => {
   if(!currentRoom) return alert("Вы не в комнате");
-
-  // Если уже в звонке — сбрасываем старый
-  if(window.inCall){
-    function resetCall(stopStream = true) {
-  window.inCall = false;
-
-  currentPC?.close();
-  currentPC = null;
-
-  for (let peer in peerConnections){
-    peerConnections[peer].close();
-    delete peerConnections[peer];
-  }
-
-  if(stopStream && localStream){
-    localStream.getTracks().forEach(track => track.stop());
-    localStream = null;
-  }
-
-  if(currentRoom){
-    set(ref(database, "rooms/" + currentRoom + "/ice/" + username), null);
-    set(ref(database, "rooms/" + currentRoom + "/call"), null);
-  }
-}
-
-  }
+  if(window.inCall) return alert("Вы уже в звонке");
 
   const target = prompt("Введите ник пользователя, которому хотите позвонить:");
   if(!target || target.trim() === "") return;
 
   await startCall(false, target.trim());
+  showCallScreen(target.trim());
 });
+
+// ===== Показ экрана звонка =====
+function showCallScreen(peerName){
+  document.getElementById("callWith").innerText = "Звонок с " + peerName;
+  document.getElementById("callScreen").style.display = "flex";
+}
+
+// ===== Кнопки Мут и Сброс =====
+document.getElementById("muteBtn").addEventListener("click", () => {
+  if(localStream){
+    localStream.getAudioTracks().forEach(t => t.enabled = !t.enabled);
+    const btn = document.getElementById("muteBtn");
+    btn.innerText = localStream.getAudioTracks()[0].enabled ? "Выкл. микрофон" : "Вкл. микрофон";
+  }
+});
+
+document.getElementById("hangUpBtn").addEventListener("click", hangUp);
+
+function hangUp(){
+  resetCall();
+}
+
 
 // ===== WebRTC звонок =====
 const peerConnections = {};
@@ -544,7 +571,6 @@ async function startCall(isAnswer, peerName) {
   }
 }
 
-// ===== Сброс звонка =====
 function resetCall() {
   window.inCall = false;
 
@@ -565,7 +591,11 @@ function resetCall() {
     set(ref(database, "rooms/" + currentRoom + "/ice/" + username), null);
     set(ref(database, "rooms/" + currentRoom + "/call"), null);
   }
+
+  // Скрываем экран звонка
+  document.getElementById("callScreen").style.display = "none";
 }
+
 
 
 

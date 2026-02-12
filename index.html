@@ -259,6 +259,7 @@ document.getElementById("fileInput").addEventListener("change",(e)=>{
 const peerConnections = {};
 const config = {iceServers:[{urls:'stun:stun.l.google.com:19302'}]};
 let localStream;
+let currentPC = null;
 window.inCall=false;
 
 async function startCall(isAnswer,peerName){
@@ -266,13 +267,24 @@ async function startCall(isAnswer,peerName){
     localStream = await navigator.mediaDevices.getUserMedia({audio:true,video:false});
   }
   const pc = new RTCPeerConnection(config);
+  currentPC = pc;
   peerConnections[peerName]=pc;
   localStream.getTracks().forEach(track=>pc.addTrack(track,localStream));
   pc.ontrack=(e)=>{ const audio = document.createElement("audio"); audio.srcObject=e.streams[0]; audio.autoplay=true; document.body.appendChild(audio);}
   pc.onicecandidate=(event)=>{ if(event.candidate){ push(ref(database,"rooms/"+currentRoom+"/ice/"+peerName),event.candidate.toJSON()); }};
+  // Подписка на ICE кандидаты от собеседника
+const iceRef = ref(database,"rooms/"+currentRoom+"/ice/"+username);
+
+onChildAdded(iceRef,(snap)=>{
+  const candidate = snap.val();
+  if(candidate && currentPC){
+    currentPC.addIceCandidate(new RTCIceCandidate(candidate));
+  }
+});
+
   // подписка на кандидаты
   // Подписка на звонки
-const callRef = ref(database, "rooms/"+room+"/call");
+const callRef = ref(database, "rooms/"+currentRoom+"/call");
 
 onValue(callRef, async (snap)=>{
   const callData = snap.val();

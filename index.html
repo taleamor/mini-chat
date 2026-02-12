@@ -129,11 +129,6 @@ button { padding:10px; border:none; border-radius:8px; background-color:#10a37f;
   cursor:pointer;
 }
 
-
-
-
-
-
 }
 </style>
 </head>
@@ -180,10 +175,6 @@ button { padding:10px; border:none; border-radius:8px; background-color:#10a37f;
 <div id="chat" class="container" style="display:none;">
   <div class="back-button" onclick="goBack()">←</div>
   <h3 id="roomTitle"></h3>
-  <div id="callControls" style="display:none; justify-content:flex-end; gap:6px; margin-bottom:4px;">
-  <button id="muteBtn">Выкл. микрофон</button>
-  <button id="hangUpBtn">Сбросить вызов</button>
-</div>
   <div id="messages"></div>
   <div id="typingIndicator" style="height:20px;font-size:12px;opacity:0.7;margin-left:4px;"></div>
   <div id="inputArea">
@@ -217,7 +208,6 @@ if ("Notification" in window) {
     console.log("Разрешение на уведомления:", permission);
   });
 }
-
 
 let currentRoom = "";
 let username = "";
@@ -268,7 +258,6 @@ function playReceiveSound(){
   osc.start();
   osc.stop(audioCtx.currentTime + 0.2);
 }
-
 
 /* ===== ИСТОРИЯ ===== */
 function saveToHistory(room) { let history = JSON.parse(localStorage.getItem("chatHistory")) || []; history = history.filter(r => r !== room); history.unshift(room); if(history.length>5) history.pop(); localStorage.setItem("chatHistory", JSON.stringify(history)); renderHistory();}
@@ -338,7 +327,6 @@ onValue(typingRef, (snap) => {
         }, 800); // 0.8 секунды задержки
     }
 });
-
 
   // Подписка на звонки
   callRef = ref(database, "rooms/"+room+"/call");
@@ -462,7 +450,6 @@ document.getElementById("messageInput").addEventListener("input",()=>{
 
 });
 
-
 document.getElementById("callButton").addEventListener("click", async () => {
   if(!currentRoom) return alert("Вы не в комнате");
   if(window.inCall) return alert("Вы уже в звонке");
@@ -480,21 +467,9 @@ function showCallScreen(peerName){
   document.getElementById("callScreen").style.display = "flex";
 }
 
-// ===== Кнопки Мут и Сброс =====
-document.getElementById("muteBtn").addEventListener("click", () => {
-  if(localStream){
-    localStream.getAudioTracks().forEach(t => t.enabled = !t.enabled);
-    const btn = document.getElementById("muteBtn");
-    btn.innerText = localStream.getAudioTracks()[0].enabled ? "Выкл. микрофон" : "Вкл. микрофон";
-  }
-});
-
-document.getElementById("hangUpBtn").addEventListener("click", hangUp);
-
 function hangUp(){
   resetCall();
 }
-
 
 // ===== WebRTC звонок =====
 const peerConnections = {};
@@ -635,15 +610,17 @@ function resetCall() {
     set(ref(database, "rooms/" + currentRoom + "/call"), null);
   }
 
-  // Скрываем экран звонка
-  document.getElementById("callScreen").style.display = "none";
+  // удаляем верхнюю панель звонка если есть
+  const panel = document.getElementById("callPanel");
+  if(panel) panel.remove();
+
+  // скрываем callControls если используется
+  const controls = document.getElementById("callControls");
+  if(controls) controls.style.display = "none";
 }
 
-
-
-
-
-
+  // Скрываем экран звонка
+  document.getElementById("callScreen").style.display = "none";
 
 </script>
 

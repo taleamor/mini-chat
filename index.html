@@ -289,21 +289,6 @@ if(typingRef){
   const timeString=now.getHours().toString().padStart(2,'0')+":"+now.getMinutes().toString().padStart(2,'0');
   push(ref(database,"rooms/"+currentRoom),{user:username,text:input.value,time:timeString,timestamp:Date.now()});
   input.value="";
-  // ===== Отслеживание печати =====
-document.getElementById("messageInput").addEventListener("input",()=>{
-
-  if(!currentRoom) return;
-
-  const userTypingRef = ref(database,"rooms/"+currentRoom+"/typing/"+username);
-
-  set(userTypingRef,true);
-
-  clearTimeout(typingTimeout);
-
-  typingTimeout = setTimeout(()=>{
-    set(userTypingRef,false);
-  },2000); // 2 секунды без активности = перестал писать
-});
 
 };
 
@@ -333,6 +318,23 @@ document.getElementById("fileInput").addEventListener("change",(e)=>{
 
   reader.readAsDataURL(file);
   e.target.value="";
+});
+
+// ===== Отслеживание печати (добавляется ОДИН раз) =====
+document.getElementById("messageInput").addEventListener("input",()=>{
+
+  if(!currentRoom) return;
+
+  const userTypingRef = ref(database,"rooms/"+currentRoom+"/typing/"+username);
+
+  set(userTypingRef,true);
+
+  clearTimeout(typingTimeout);
+
+  typingTimeout = setTimeout(()=>{
+    set(userTypingRef,false);
+  },2000);
+
 });
 
 /* ===== WebRTC звонок ===== */

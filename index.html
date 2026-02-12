@@ -74,10 +74,11 @@ button { padding:10px; border:none; border-radius:8px; background-color:#10a37f;
   <div class="back-button" onclick="goBack()">←</div>
   <h3 id="roomTitle"></h3>
   <div id="messages"></div>
+  <div id="typingStatus" style="font-size:12px;opacity:0.6;height:16px;margin-left:4px;"></div>
   <div id="inputArea">
     <label id="fileInputLabel" for="fileInput">➕</label>
     <input type="file" id="fileInput" accept="image/*,video/*">
-    <input id="messageInput" placeholder="Сообщение...">
+   <input id="messageInput" placeholder="Сообщение..." oninput="userTyping()">
     <button id="callButton">📞</button>
     <button onclick="sendMessage()">➤</button>
   </div>
@@ -104,6 +105,10 @@ const database = getDatabase(app);
 let currentRoom = "";
 let username = "";
 let currentListener = null;
+let typingTimeout;
+// ===== ЗВУКИ =====
+const sendSound = new Audio("https://actions.google.com/sounds/v1/cartoon/wood_plank_flicks.ogg");
+const receiveSound = new Audio("https://actions.google.com/sounds/v1/cartoon/pop.ogg");
 const correctPassword = "1234";
 const FIVE_DAYS = 5 * 24 * 60 * 60 * 1000;
 
@@ -123,13 +128,57 @@ window.enterChat = async function() {
   if(password!==correctPassword) return alert("Неверный пароль");
   if(room===""||username==="") return alert("Введите имя и комнату");
   currentRoom=room; saveToHistory(room);
+  // подписка на печатает
+const typingRef = ref(database,"rooms/"+room+"/typing");
+
+onValue(typingRef,(snap)=>{
+  const data = snap.val();
+  if(!data) return;
+
+  const usersTyping = Object.keys(data).filter(u => u !== username);
+
+  const statusDiv = document.getElementById("typingStatus");
+
+  if(usersTyping.length === 0){
+    statusDiv.innerText="";
+  } 
+  else if(usersTyping.length === 1){
+    statusDiv.innerText = usersTyping[0] + " печатает...";
+  } 
+  else {
+    statusDiv.innerText = "Несколько человек печатают...";
+  }
+});
   const messagesRef = ref(database,"rooms/"+room);
   currentListener = messagesRef;
   const snapshot = await get(messagesRef);
   if(snapshot.exists()){ const data = snapshot.val(); const keys=Object.keys(data); const lastMsg=data[keys[keys.length-1]]; if(Date.now()-lastMsg.timestamp>FIVE_DAYS){ await remove(messagesRef); } }
   document.getElementById("login").style.display="none"; document.getElementById("chat").style.display="flex";
   document.getElementById("roomTitle").innerText=room;
-  onChildAdded(messagesRef,(data)=>{ const msgData = data.val(); displayMessage(msgData); });
+  onChildAdded(messagesRef,(data)=>{
+  const msgData = data.val();
+  const key = data.key;
+
+  // если сообщение не наше — отмечаем как прочитанное
+  if(msgData.user !== username){
+    set(ref(database,"rooms/"+currentRoom+"/"+key+"/readBy/"+username),true);
+  }
+
+  displayMessage(msgData,key);
+});
+  // ===== АВТООЧИСТКА (макс 500 сообщений) =====
+onValue(messagesRef, async (snap)=>{
+  const data = snap.val();
+  if(!data) return;
+
+  const keys = Object.keys(data);
+  if(keys.length > 500){
+    const excess = keys.length - 500;
+    for(let i=0;i<excess;i++){
+      await remove(ref(database,"rooms/"+room+"/"+keys[i]));
+    }
+  }
+});
   // Подписка на звонки
   const callRef = ref(database, "rooms/"+room+"/call");
   onValue(callRef,(snap)=>{
@@ -145,22 +194,44 @@ window.enterChat = async function() {
 };
 
 /* ===== ПОКАЗ СООБЩЕНИЙ ===== */
-function displayMessage(msgData){
+function displayMessage(msgData,key){
   const msg=document.createElement("div");
   msg.className="message "+(msgData.user===username?"mine":"other");
+
+  let readMark="";
+
+  if(msgData.user===username){
+    if(msgData.readBy && Object.keys(msgData.readBy).length > 1){
+      readMark="✔✔";
+    } else {
+      readMark="✔";
+    }
+  }
 
   if(msgData.type==="file"){
     msg.innerHTML=`
       📎 <a href="${msgData.fileData}" download="${msgData.fileName}" style="color:inherit;text-decoration:underline;">
       Скачать ${msgData.fileName}
       </a>
-      <div class="time">${msgData.time}</div>
+      <div class="time">${msgData.time} ${readMark}</div>
     `;
   } else {
     msg.innerHTML=`
       <div><strong>${msgData.user}</strong>: ${msgData.text}</div>
-      <div class="time">${msgData.time}</div>
+      <div class="time">${msgData.time} ${readMark}</div>
     `;
+  }
+
+  // отметить как прочитано
+  if(msgData.user !== username){
+    set(
+      ref(database,"rooms/"+currentRoom+"/"+key+"/readBy/"+username),
+      true
+    );
+
+    // звук получения
+    receiveSound.currentTime = 0;
+    receiveSound.play();
   }
 
   const messagesBox=document.getElementById("messages");
@@ -174,8 +245,28 @@ window.sendMessage=function(){
   if(input.value.trim()==="") return;
   const now=new Date();
   const timeString=now.getHours().toString().padStart(2,'0')+":"+now.getMinutes().toString().padStart(2,'0');
-  push(ref(database,"rooms/"+currentRoom),{user:username,text:input.value,time:timeString,timestamp:Date.now()});
+  push(ref(database,"rooms/"+currentRoom),{
+  user:username,
+  text:input.value,
+  time:timeString,
+  timestamp:Date.now(),
+  readBy:{ [username]: true }
+});
   input.value="";
+  sendSound.currentTime = 0;
+sendSound.play();
+};
+
+window.userTyping = function(){
+  const typingRef = ref(database,"rooms/"+currentRoom+"/typing/"+username);
+
+  set(typingRef,true);
+
+  clearTimeout(typingTimeout);
+
+  typingTimeout = setTimeout(()=>{
+    set(typingRef,null);
+  },2000);
 };
 
 /* ===== ФАЙЛЫ В БАЗУ (СКАЧИВАНИЕ) ===== */

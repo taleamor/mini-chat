@@ -107,6 +107,48 @@ let currentListener = null;
 const correctPassword = "1234";
 const FIVE_DAYS = 5 * 24 * 60 * 60 * 1000;
 
+/* ===== ЗВУКИ СООБЩЕНИЙ ===== */
+const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+function playSendSound(){
+  const osc = audioCtx.createOscillator();
+  const gain = audioCtx.createGain();
+
+  osc.type = "sine";
+  osc.frequency.setValueAtTime(600, audioCtx.currentTime);
+  osc.frequency.exponentialRampToValueAtTime(900, audioCtx.currentTime + 0.08);
+
+  gain.gain.setValueAtTime(0.001, audioCtx.currentTime);
+  gain.gain.exponentialRampToValueAtTime(0.15, audioCtx.currentTime + 0.01);
+  gain.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + 0.15);
+
+  osc.connect(gain);
+  gain.connect(audioCtx.destination);
+
+  osc.start();
+  osc.stop(audioCtx.currentTime + 0.15);
+}
+
+function playReceiveSound(){
+  const osc = audioCtx.createOscillator();
+  const gain = audioCtx.createGain();
+
+  osc.type = "triangle";
+  osc.frequency.setValueAtTime(500, audioCtx.currentTime);
+  osc.frequency.exponentialRampToValueAtTime(700, audioCtx.currentTime + 0.1);
+
+  gain.gain.setValueAtTime(0.001, audioCtx.currentTime);
+  gain.gain.exponentialRampToValueAtTime(0.2, audioCtx.currentTime + 0.02);
+  gain.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + 0.2);
+
+  osc.connect(gain);
+  gain.connect(audioCtx.destination);
+
+  osc.start();
+  osc.stop(audioCtx.currentTime + 0.2);
+}
+
+
 /* ===== ИСТОРИЯ ===== */
 function saveToHistory(room) { let history = JSON.parse(localStorage.getItem("chatHistory")) || []; history = history.filter(r => r !== room); history.unshift(room); if(history.length>5) history.pop(); localStorage.setItem("chatHistory", JSON.stringify(history)); renderHistory();}
 function renderHistory() { const box = document.getElementById("historyBox"); box.innerHTML=""; const history=JSON.parse(localStorage.getItem("chatHistory"))||[]; history.forEach(room=>{const div=document.createElement("div"); div.className="chat-item"; div.innerText=room; div.onclick=()=>{document.getElementById("roomInput").value=room;}; box.appendChild(div);}); }
@@ -166,6 +208,13 @@ function displayMessage(msgData){
   const messagesBox=document.getElementById("messages");
   messagesBox.appendChild(msg);
   messagesBox.scrollTop=messagesBox.scrollHeight;
+  // ===== Воспроизведение звука =====
+  if(msgData.user === username){
+    playSendSound();
+  } else {
+    playReceiveSound();
+  }
+
 }
 
 /* ===== ОТПРАВКА ===== */

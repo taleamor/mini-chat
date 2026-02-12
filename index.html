@@ -422,6 +422,21 @@ document.getElementById("messageInput").addEventListener("input",()=>{
 
 });
 
+document.getElementById("callButton").addEventListener("click", () => {
+
+  if(!currentRoom) return alert("Вы не в комнате");
+
+  if(window.inCall) return alert("Вы уже в звонке");
+
+  const target = prompt("Введите ник пользователя, которому хотите позвонить:");
+
+  if(!target || target.trim() === "") return;
+
+  startCall(false, target.trim());
+
+});
+
+
 // ===== WebRTC звонок =====
 const peerConnections = {};
 const config = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };

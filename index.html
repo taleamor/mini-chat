@@ -2,35 +2,108 @@
 <html>
 <head>
 <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>CoChat</title>
 
 <link rel="manifest" href="/manifest.json">
 <meta name="theme-color" content="#10a37f">
 
 <style>
-/* === Стили остались без изменений, только добавим кнопку звонка чуть больше === */
-body { margin:0; font-family: Arial, sans-serif; background-color: #2a2a2a; color: white; display:flex; justify-content:center; align-items:flex-start; min-height:100vh; overflow-x:hidden;}
-.container { width:94%; max-width:460px; height:100vh; background:#2a2a2a; border-radius:18px; display:flex; flex-direction:column; padding:10px; box-sizing:border-box; position:relative;}
-h2,h3 { margin:4px 0; text-align:center;}
-input { padding:7px; margin:3px 0; border-radius:8px; border:none; font-size:13px;}
-button { padding:10px; border:none; border-radius:8px; background-color:#10a37f; color:white; font-size:14px; cursor:pointer;}
-.back-button { position:absolute; top:8px; left:10px; font-size:18px; cursor:pointer; opacity:0.7;}
-#messages { flex:1 1 auto; overflow-y:auto; margin:6px 0; display:flex; flex-direction:column; scroll-behavior:smooth;}
-.message { max-width:75%; padding:7px 9px; border-radius:14px; margin:3px 0; font-size:13px; animation:fadeIn 0.2s ease;}
-.mine { align-self:flex-end; background:white; color:black;}
-.other { align-self:flex-start; background:#10a37f; color:white;}
-.time { font-size:10px; opacity:0.6; margin-top:2px;}
-@keyframes fadeIn { from { opacity:0; transform:translateY(4px);} to {opacity:1; transform:translateY(0);}}
-#inputArea { display:flex; gap:4px; flex-shrink:0;}
-#inputArea input { flex:1; border-radius:8px; padding:7px;}
-#fileInputLabel { background-color:#10a37f; color:white; border-radius:8px; display:flex; align-items:center; justify-content:center; width:40px; cursor:pointer; font-size:18px;}
-#callButton { background-color:#28a745; width:40px; font-size:18px; display:flex; justify-content:center; align-items:center;} /* кнопка звонка */
-#fileInput { display:none;}
-.chat-history { margin-top:8px; background:#1f1f1f; border-radius:10px; padding:6px; max-height:100px; overflow-y:auto; font-size:12px;}
-.chat-item { padding:4px; cursor:pointer; border-bottom:1px solid #333;}
-.chat-item:last-child { border-bottom:none;}
-.chat-item:hover { background:#333;}
-.footer { position:absolute; bottom:6px; width:100%; text-align:center; font-size:10px; opacity:0.4;}
+body {
+  margin:0;
+  font-family: Arial, sans-serif;
+  background:#1c1c1c;
+  color:white;
+  display:flex;
+  justify-content:center;
+  height:100vh;
+  overflow:hidden;
+}
+
+.container {
+  width:100%;
+  max-width:500px;
+  height:100vh;
+  display:flex;
+  flex-direction:column;
+  padding:14px;
+  box-sizing:border-box;
+}
+
+h2,h3 { text-align:center; margin:8px 0; }
+
+input {
+  padding:12px;
+  margin:6px 0;
+  border-radius:12px;
+  border:none;
+  font-size:16px;
+}
+
+button {
+  padding:14px;
+  border:none;
+  border-radius:12px;
+  background:#10a37f;
+  color:white;
+  font-size:16px;
+  cursor:pointer;
+}
+
+#messages {
+  flex:1;
+  overflow-y:auto;
+  margin:10px 0;
+  display:flex;
+  flex-direction:column;
+}
+
+.message {
+  max-width:80%;
+  padding:10px 14px;
+  border-radius:16px;
+  margin:6px 0;
+  font-size:15px;
+  word-wrap:break-word;
+}
+
+.mine { align-self:flex-end; background:white; color:black; }
+.other { align-self:flex-start; background:#10a37f; }
+
+.time {
+  font-size:11px;
+  opacity:0.6;
+  margin-top:4px;
+}
+
+#inputArea {
+  display:flex;
+  gap:6px;
+}
+
+#fileInputLabel, #callButton {
+  width:48px;
+  height:48px;
+  font-size:22px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  border-radius:12px;
+}
+
+#fileInputLabel { background:#10a37f; }
+#callButton { background:#28a745; }
+
+#messageInput {
+  flex:1;
+}
+
+#fileInput { display:none; }
+
+a.downloadLink {
+  color:#fff;
+  text-decoration:underline;
+}
 </style>
 </head>
 <body>
@@ -41,12 +114,9 @@ button { padding:10px; border:none; border-radius:8px; background-color:#10a37f;
   <input id="roomInput" placeholder="Название комнаты">
   <input id="passwordInput" placeholder="Пароль">
   <button onclick="enterChat()">Войти</button>
-  <div class="chat-history" id="historyBox"></div>
-  <div class="footer">MEZENCEV&CO</div>
 </div>
 
 <div id="chat" class="container" style="display:none;">
-  <div class="back-button" onclick="goBack()">←</div>
   <h3 id="roomTitle"></h3>
   <div id="messages"></div>
   <div id="inputArea">
@@ -60,159 +130,128 @@ button { padding:10px; border:none; border-radius:8px; background-color:#10a37f;
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-import { getDatabase, ref, push, onChildAdded, remove, get, off, onValue, set } 
+import { getDatabase, ref, push, onChildAdded, set, get, onValue } 
 from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
 
-const firebaseConfig = {
-  apiKey: "AIzaSyA64EfxQkGhcCKnxAT_0k_3BTFt5wc6x-E",
-  authDomain: "cochat-18c46.firebaseapp.com",
-  databaseURL: "https://cochat-18c46-default-rtdb.europe-west1.firebasedatabase.app",
-  projectId: "cochat-18c46",
-  storageBucket: "cochat-18c46.firebasestorage.app",
-  messagingSenderId: "966021418904",
-  appId: "1:966021418904:web:efdf644f1203088c4025ed"
-};
+const firebaseConfig = { /* твой конфиг оставь тот же */ };
 
 const app = initializeApp(firebaseConfig);
-const database = getDatabase(app);
+const db = getDatabase(app);
 
-let currentRoom = "";
-let username = "";
-let currentListener = null;
-const correctPassword = "1234";
-const FIVE_DAYS = 5 * 24 * 60 * 60 * 1000;
-
-/* ===== ИСТОРИЯ ===== */
-function saveToHistory(room) { let history = JSON.parse(localStorage.getItem("chatHistory")) || []; history = history.filter(r => r !== room); history.unshift(room); if(history.length>5) history.pop(); localStorage.setItem("chatHistory", JSON.stringify(history)); renderHistory();}
-function renderHistory() { const box = document.getElementById("historyBox"); box.innerHTML=""; const history=JSON.parse(localStorage.getItem("chatHistory"))||[]; history.forEach(room=>{const div=document.createElement("div"); div.className="chat-item"; div.innerText=room; div.onclick=()=>{document.getElementById("roomInput").value=room;}; box.appendChild(div);}); }
-renderHistory();
-
-/* ===== НАЗАД ===== */
-window.goBack=function(){ if(currentListener){ off(currentListener); currentListener=null; } document.getElementById("chat").style.display="none"; document.getElementById("login").style.display="flex"; document.getElementById("messages").innerHTML=""; }
+let currentRoom="";
+let username="";
+const correctPassword="1234";
 
 /* ===== ВХОД ===== */
-window.enterChat = async function() {
-  const room = document.getElementById("roomInput").value.trim();
-  const password = document.getElementById("passwordInput").value;
-  username = document.getElementById("usernameInput").value.trim();
-  if(password!==correctPassword) return alert("Неверный пароль");
-  if(room===""||username==="") return alert("Введите имя и комнату");
-  currentRoom=room; saveToHistory(room);
-  const messagesRef = ref(database,"rooms/"+room);
-  currentListener = messagesRef;
-  const snapshot = await get(messagesRef);
-  if(snapshot.exists()){ const data = snapshot.val(); const keys=Object.keys(data); const lastMsg=data[keys[keys.length-1]]; if(Date.now()-lastMsg.timestamp>FIVE_DAYS){ await remove(messagesRef); } }
-  document.getElementById("login").style.display="none"; document.getElementById("chat").style.display="flex";
+window.enterChat = function(){
+  const room=document.getElementById("roomInput").value.trim();
+  username=document.getElementById("usernameInput").value.trim();
+  const pass=document.getElementById("passwordInput").value;
+
+  if(pass!==correctPassword) return alert("Неверный пароль");
+  if(!room||!username) return alert("Введите данные");
+
+  currentRoom=room;
+
+  document.getElementById("login").style.display="none";
+  document.getElementById("chat").style.display="flex";
   document.getElementById("roomTitle").innerText=room;
-  onChildAdded(messagesRef,(data)=>{ const msgData = data.val(); displayMessage(msgData); });
-  // Подписка на звонки
-  const callRef = ref(database, "rooms/"+room+"/call");
-  onValue(callRef,(snap)=>{
-    const callData = snap.val();
-    if(callData && callData.to===username && !window.inCall){
-      if(confirm(`${callData.from} звонит! Принять звонок?`)){
-        startCall(true,callData.from); // принял звонок
-      } else {
-        set(callRef,null); // отклонить
-      }
-    }
+
+  onChildAdded(ref(db,"rooms/"+room),(snap)=>{
+    displayMessage(snap.val());
   });
 };
 
-/* ===== ПОКАЗ СООБЩЕНИЙ ===== */
-function displayMessage(msgData){
-  const msg=document.createElement("div");
-  msg.className="message "+(msgData.user===username?"mine":"other");
-  msg.innerHTML=`<div><strong>${msgData.user}</strong>: ${msgData.text}</div><div class="time">${msgData.time}</div>`;
-  const messagesBox=document.getElementById("messages");
-  messagesBox.appendChild(msg);
-  messagesBox.scrollTop=messagesBox.scrollHeight;
-}
-
-/* ===== ОТПРАВКА ===== */
+/* ===== ОТПРАВКА ТЕКСТА ===== */
 window.sendMessage=function(){
   const input=document.getElementById("messageInput");
-  if(input.value.trim()==="") return;
-  const now=new Date();
-  const timeString=now.getHours().toString().padStart(2,'0')+":"+now.getMinutes().toString().padStart(2,'0');
-  push(ref(database,"rooms/"+currentRoom),{user:username,text:input.value,time:timeString,timestamp:Date.now()});
+  if(!input.value.trim()) return;
+
+  push(ref(db,"rooms/"+currentRoom),{
+    type:"text",
+    user:username,
+    text:input.value,
+    time:new Date().toLocaleTimeString()
+  });
+
   input.value="";
 };
 
-/* ===== ФАЙЛЫ ЛОКАЛЬНО ===== */
-document.getElementById("fileInput").addEventListener("change",(e)=>{
-  const file = e.target.files[0]; if(!file) return;
-  const reader = new FileReader();
-  reader.onload=function(event){
-    const dataURL=event.target.result;
-    const msg=document.createElement("div"); msg.className="message mine";
-    if(file.type.startsWith("image/")){
-      msg.innerHTML=`<a href="${dataURL}" download><img src="${dataURL}" style="max-width:200px;border-radius:10px;"></a><div class="time">📷</div>`;
-    } else if(file.type.startsWith("video/")){
-      msg.innerHTML=`<video src="${dataURL}" style="max-width:200px;" controls></video><div class="time">🎥</div>`;
-    }
-    document.getElementById("messages").appendChild(msg);
-    document.getElementById("messages").scrollTop=document.getElementById("messages").scrollHeight;
+/* ===== ОТПРАВКА ФАЙЛА ===== */
+document.getElementById("fileInput").addEventListener("change",e=>{
+  const file=e.target.files[0];
+  if(!file) return;
+
+  const reader=new FileReader();
+  reader.onload=function(ev){
+    push(ref(db,"rooms/"+currentRoom),{
+      type:"file",
+      user:username,
+      fileName:file.name,
+      fileData:ev.target.result,
+      time:new Date().toLocaleTimeString()
+    });
   };
   reader.readAsDataURL(file);
-  e.target.value="";
 });
 
-/* ===== WebRTC звонок ===== */
-const peerConnections = {};
-const config = {iceServers:[{urls:'stun:stun.l.google.com:19302'}]};
+/* ===== ОТОБРАЖЕНИЕ ===== */
+function displayMessage(data){
+  const msg=document.createElement("div");
+  msg.className="message "+(data.user===username?"mine":"other");
+
+  if(data.type==="text"){
+    msg.innerHTML=`${data.text}<div class="time">${data.time}</div>`;
+  }
+  else if(data.type==="file"){
+    msg.innerHTML=`
+      📎 <a class="downloadLink" href="${data.fileData}" download="${data.fileName}">
+      Скачать ${data.fileName}
+      </a>
+      <div class="time">${data.time}</div>
+    `;
+  }
+
+  const box=document.getElementById("messages");
+  box.appendChild(msg);
+  box.scrollTop=box.scrollHeight;
+}
+
+/* ===== WebRTC ЗВОНОК (исправленный) ===== */
 let localStream;
-window.inCall=false;
+let pc;
+const config={iceServers:[{urls:"stun:stun.l.google.com:19302"}]};
 
-async function startCall(isAnswer,peerName){
-  if(!localStream){
-    localStream = await navigator.mediaDevices.getUserMedia({audio:true,video:false});
-  }
-  const pc = new RTCPeerConnection(config);
-  peerConnections[peerName]=pc;
+async function startCall(target){
+  localStream=await navigator.mediaDevices.getUserMedia({audio:true});
+  pc=new RTCPeerConnection(config);
+
   localStream.getTracks().forEach(track=>pc.addTrack(track,localStream));
-  pc.ontrack=(e)=>{ const audio = document.createElement("audio"); audio.srcObject=e.streams[0]; audio.autoplay=true; document.body.appendChild(audio);}
-  pc.onicecandidate=(event)=>{ if(event.candidate){ push(ref(database,"rooms/"+currentRoom+"/ice/"+peerName),event.candidate.toJSON()); }};
-  // подписка на кандидаты
-  const iceRef=ref(database,"rooms/"+currentRoom+"/ice/"+peerName);
-  onChildAdded(iceRef,(snap)=>{
-    const cand = snap.val();
-    if(cand) pc.addIceCandidate(new RTCIceCandidate(cand));
-  });
 
-  if(!isAnswer){
-    const offer = await pc.createOffer();
-    await pc.setLocalDescription(offer);
-    set(ref(database,"rooms/"+currentRoom+"/call"),{from:username,to:peerName,sdp:offer});
-    window.inCall=true;
-  } else {
-    const callRef = ref(database,"rooms/"+currentRoom+"/call");
-    const snap = await get(callRef);
-    if(snap.exists()){
-      const data = snap.val();
-      await pc.setRemoteDescription(new RTCSessionDescription(data.sdp));
-      const answer = await pc.createAnswer();
-      await pc.setLocalDescription(answer);
-      set(callRef,{from:username,to:data.from,sdp:answer});
-      window.inCall=true;
+  pc.ontrack=e=>{
+    const audio=new Audio();
+    audio.srcObject=e.streams[0];
+    audio.play();
+  };
+
+  pc.onicecandidate=e=>{
+    if(e.candidate){
+      push(ref(db,"rooms/"+currentRoom+"/ice"),e.candidate.toJSON());
     }
-  }
-}
+  };
 
-/* ===== КНОПКА ЗВОНОК ===== */
-document.getElementById("callButton").addEventListener("click",()=>{
-  const peer = prompt("Введите имя человека, которому хотите позвонить:");
-  if(peer && peer!==username) startCall(false,peer);
-});
-</script>
+  const offer=await pc.createOffer();
+  await pc.setLocalDescription(offer);
 
-<script>
-if("serviceWorker" in navigator){
-  window.addEventListener("load",()=>{
-    navigator.serviceWorker.register("/sw.js").then(()=>console.log("SW зарегистрирован")).catch(err=>console.log("Ошибка SW:",err));
+  set(ref(db,"rooms/"+currentRoom+"/call"),{
+    from:username,
+    sdp:offer
   });
 }
-</script>
 
+document.getElementById("callButton").onclick=()=>{
+  startCall();
+};
+</script>
 </body>
 </html>

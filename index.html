@@ -9,22 +9,103 @@
 <meta name="theme-color" content="#10a37f">
 
 <style>
+  :root{
+  --brand-blue: linear-gradient(145deg, #3b82f6, #2563eb);
+  --metal-blue: linear-gradient(145deg, #4f8cff, #1e3a8a);
+  --soft-gray: #9ca3af;
+}
 /* === Стили остались без изменений, только добавим кнопку звонка чуть больше === */
-body { margin:0; font-family: Arial, sans-serif; background-color: #2a2a2a; color: white; display:flex; justify-content:center; align-items:flex-start; min-height:100vh; overflow-x:hidden;}
-.container { width:94%; max-width:460px; height:100vh; background:#2a2a2a; border-radius:18px; display:flex; flex-direction:column; padding:10px; box-sizing:border-box; position:relative;}
+body {
+  margin:0;
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", Arial, sans-serif;
+  background: linear-gradient(-45deg, #0f0f10, #1a1b1e, #111827, #0f172a);
+  background-size: 400% 400%;
+  animation: gradientMove 15s ease infinite;
+  color:white;
+  display:flex;
+  justify-content:center;
+  align-items:flex-start;
+  min-height:100vh;
+  overflow-x:hidden;
+}
+@keyframes gradientMove {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+.container {
+  width:94%;
+  max-width:460px;
+  height:100vh;
+  background: rgba(30, 30, 32, 0.55);
+  backdrop-filter: blur(25px);
+  -webkit-backdrop-filter: blur(25px);
+  border-radius:22px;
+  border:1px solid rgba(255,255,255,0.08);
+  box-shadow: 0 10px 40px rgba(0,0,0,0.6);
+  display:flex;
+  flex-direction:column;
+  padding:14px;
+  box-sizing:border-box;
+  position:relative;
+}
 h2,h3 { margin:4px 0; text-align:center;}
 input { padding:7px; margin:3px 0; border-radius:8px; border:none; font-size:13px;}
-button { padding:10px; border:none; border-radius:8px; background-color:#10a37f; color:white; font-size:14px; cursor:pointer;}
+button {
+  padding:10px;
+  border:none;
+  border-radius:12px;
+  background: rgba(255,255,255,0.9);
+  color:#111;
+  font-size:14px;
+  cursor:pointer;
+  transition: all 0.2s ease;
+  backdrop-filter: blur(10px);
+}
+#login button{
+  background: var(--brand-blue);
+  color:white;
+}
+button:hover{
+  transform: scale(1.05);
+  box-shadow: 0 0 15px rgba(255,255,255,0.4);
+}
 .back-button { position:absolute; top:8px; left:10px; font-size:18px; cursor:pointer; opacity:0.7;}
 #messages { flex:1 1 auto; overflow-y:auto; margin:6px 0; display:flex; flex-direction:column; scroll-behavior:smooth;}
 .message { max-width:75%; padding:7px 9px; border-radius:14px; margin:3px 0; font-size:13px; animation:fadeIn 0.2s ease;}
-.mine { align-self:flex-end; background:white; color:black;}
-.other { align-self:flex-start; background:#10a37f; color:white;}
+.mine {
+  align-self:flex-end;
+  background: rgba(255,255,255,0.95);
+  color: #111;
+  backdrop-filter: blur(10px);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+}
+.other {
+  align-self:flex-start;
+  background: var(--metal-blue);
+  color:white;
+  box-shadow: 0 4px 18px rgba(30,58,138,0.5);
+}
 .time { font-size:10px; opacity:0.6; margin-top:2px;}
 @keyframes fadeIn { from { opacity:0; transform:translateY(4px);} to {opacity:1; transform:translateY(0);}}
 #inputArea { display:flex; gap:4px; flex-shrink:0;}
 #inputArea input { flex:1; border-radius:8px; padding:7px;}
-#fileInputLabel { background-color:#10a37f; color:white; border-radius:8px; display:flex; align-items:center; justify-content:center; width:40px; cursor:pointer; font-size:18px;}
+#fileInputLabel,
+#callButton,
+#inputArea button {
+  background: rgba(255,255,255,0.9);
+  color:#111;
+  border-radius:14px;
+  backdrop-filter: blur(10px);
+  transition: all 0.2s ease;
+}
+
+#fileInputLabel:hover,
+#callButton:hover,
+#inputArea button:hover{
+  transform: scale(1.08);
+  box-shadow: 0 0 15px rgba(255,255,255,0.5);
+}
 #callButton { background-color:#28a745; width:40px; font-size:18px; display:flex; justify-content:center; align-items:center;} /* кнопка звонка */
 #fileInput { display:none;}
 .chat-history { margin-top:8px; background:#1f1f1f; border-radius:10px; padding:6px; max-height:100px; overflow-y:auto; font-size:12px;}
@@ -32,6 +113,134 @@ button { padding:10px; border:none; border-radius:8px; background-color:#10a37f;
 .chat-item:last-child { border-bottom:none;}
 .chat-item:hover { background:#333;}
 .footer { position:absolute; bottom:6px; width:100%; text-align:center; font-size:10px; opacity:0.4;}
+#messages::-webkit-scrollbar {
+  width:6px;
+}
+#messages::-webkit-scrollbar-thumb {
+  background: rgba(255,255,255,0.2);
+  border-radius:10px;
+}
+*{
+  transition: background 0.2s ease, color 0.2s ease;
+}
+/* === Активный чат мягкое свечение === */
+#chat.active-chat {
+  box-shadow:
+    0 0 60px rgba(59,130,246,0.15),
+    0 20px 50px rgba(0,0,0,0.6);
+  transition: box-shadow 0.4s ease;
+}
+/* === Тени скролла === */
+.scroll-shadow-top,
+.scroll-shadow-bottom {
+  position:absolute;
+  left:0;
+  width:100%;
+  height:25px;
+  pointer-events:none;
+  z-index:5;
+  opacity:0;
+  transition: opacity 0.3s ease;
+}
+
+.scroll-shadow-top {
+  top:60px;
+  background: linear-gradient(to bottom, rgba(0,0,0,0.5), transparent);
+}
+
+.scroll-shadow-bottom {
+  bottom:80px;
+  background: linear-gradient(to top, rgba(0,0,0,0.5), transparent);
+}
+/* === Эффект глубины при нажатии === */
+button,
+#fileInputLabel,
+#callButton {
+  transition: all 0.15s ease;
+}
+
+button:active,
+#fileInputLabel:active,
+#callButton:active {
+  transform: scale(0.92);
+  box-shadow: inset 0 4px 10px rgba(0,0,0,0.4);
+}
+.message:active {
+  transform: scale(0.97);
+}
+/* === Новое сообщение glow === */
+.message.new-glow {
+  animation: messageGlow 1.2s ease;
+}
+
+@keyframes messageGlow {
+  0% {
+    box-shadow: 0 0 0 rgba(59,130,246,0);
+  }
+  30% {
+    box-shadow: 0 0 25px rgba(59,130,246,0.6);
+  }
+  100% {
+    box-shadow: 0 0 0 rgba(59,130,246,0);
+  }
+}
+/* === Кнопка вниз === */
+#scrollDownBtn {
+  position:absolute;
+  right:18px;
+  bottom:90px;
+  width:44px;
+  height:44px;
+  border-radius:50%;
+  font-size:18px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  background: linear-gradient(145deg,#3b82f6,#1e3a8a);
+  color:white;
+  border:none;
+  opacity:0;
+  transform: scale(0.8);
+  transition: all 0.25s ease;
+  box-shadow: 0 8px 25px rgba(0,0,0,0.5);
+  z-index:10;
+}
+
+#scrollDownBtn.show {
+  opacity:1;
+  transform: scale(1);
+}
+/* === Анимация входа === */
+.fade-in-chat {
+  animation: fadeChat 0.4s ease;
+}
+
+@keyframes fadeChat {
+  0% {
+    opacity:0;
+    filter: blur(10px);
+    transform: scale(0.98);
+  }
+  100% {
+    opacity:1;
+    filter: blur(0);
+    transform: scale(1);
+  }
+}
+/* === Swipe delete === */
+.message {
+  position: relative;
+  transition: transform 0.2s ease, opacity 0.2s ease;
+}
+
+.message.swiping {
+  transition: none;
+}
+
+.message.delete-ready {
+  background: linear-gradient(145deg,#ef4444,#991b1b) !important;
+  color: white !important;
+}
 /* ===== МОБИЛЬНАЯ АДАПТАЦИЯ ===== */
 @media (max-width: 600px) {
   input {
@@ -78,16 +287,16 @@ button { padding:10px; border:none; border-radius:8px; background-color:#10a37f;
 }
 
 .delete-warning {
-  text-align: center;        /* центрируем точно над пальмой */
+  text-align: center;
   font-size: 12px;
-  color: #10a37f;
-  opacity: 0.7;
+  color: var(--soft-gray);
+  opacity: 0.8;
   font-weight: 500;
   font-family: Arial, sans-serif;
   line-height: 1.3em;
   word-wrap: break-word;
-  max-width: 90%;            /* чтобы текст не упирался в края */
-  margin: 0 auto 6px auto;   /* сверху 0, снизу 6px от пальмы */
+  max-width: 90%;
+  margin: 0 auto 6px auto;
 }
 
 .delete-warning div {
@@ -175,7 +384,10 @@ button { padding:10px; border:none; border-radius:8px; background-color:#10a37f;
 <div id="chat" class="container" style="display:none;">
   <div class="back-button" onclick="goBack()">←</div>
   <h3 id="roomTitle"></h3>
-  <div id="messages"></div>
+  <div class="scroll-shadow-top" id="shadowTop"></div>
+<div id="messages"></div>
+<div class="scroll-shadow-bottom" id="shadowBottom"></div>
+<button id="scrollDownBtn">⬇</button>
   <div id="typingIndicator" style="height:20px;font-size:12px;opacity:0.7;margin-left:4px;"></div>
   <div id="inputArea">
     <label id="fileInputLabel" for="fileInput">➕</label>
@@ -297,6 +509,40 @@ if ("Notification" in window) {
 }
 
 let currentRoom = "";
+// ===== Скролл тени =====
+function updateScrollShadows(){
+  const messages = document.getElementById("messages");
+  const topShadow = document.getElementById("shadowTop");
+  const bottomShadow = document.getElementById("shadowBottom");
+
+  if(!messages) return;
+
+  topShadow.style.opacity = messages.scrollTop > 5 ? "1" : "0";
+
+  const atBottom = messages.scrollHeight - messages.scrollTop - messages.clientHeight < 5;
+  bottomShadow.style.opacity = atBottom ? "0" : "1";
+  const scrollBtn = document.getElementById("scrollDownBtn");
+if(scrollBtn){
+  const atBottom = messages.scrollHeight - messages.scrollTop - messages.clientHeight < 50;
+  if(atBottom){
+    scrollBtn.classList.remove("show");
+  } else {
+    scrollBtn.classList.add("show");
+  }
+}
+}
+// кнопка вниз
+document.addEventListener("click", function(e){
+  if(e.target.id === "scrollDownBtn"){
+    const messages = document.getElementById("messages");
+    messages.scrollTo({
+      top: messages.scrollHeight,
+      behavior: "smooth"
+    });
+  }
+});
+
+document.addEventListener("scroll", updateScrollShadows, true);
 let username = "";
 let typingTimeout = null;
 let typingRef = null;
@@ -364,6 +610,7 @@ window.goBack = function() {
     set(ref(database,"rooms/"+currentRoom+"/typing/"+username), false);
   }
 
+document.getElementById("chat").classList.remove("active-chat");
   document.getElementById("chat").style.display = "none";
   document.getElementById("login").style.display = "flex";
   document.getElementById("messages").innerHTML = "";
@@ -389,7 +636,14 @@ subscribeIncomingCalls(); // v3
   const snapshot = await get(messagesRef);
   if(snapshot.exists()){ const data = snapshot.val(); const keys=Object.keys(data); const lastMsg=data[keys[keys.length-1]]; if(Date.now()-lastMsg.timestamp>FIVE_DAYS){ await remove(messagesRef); } }
   document.getElementById("login").style.display="none"; document.getElementById("chat").style.display="flex";
+  const chatEl = document.getElementById("chat");
+chatEl.classList.add("fade-in-chat");
+
+setTimeout(()=>{
+  chatEl.classList.remove("fade-in-chat");
+}, 400);
   document.getElementById("roomTitle").innerText=room;
+  document.getElementById("chat").classList.add("active-chat");
   onChildAdded(messagesRef,(data)=>{ const msgData = data.val(); displayMessage(msgData); });
 
   currentTypingUser = null;
@@ -447,6 +701,7 @@ if(msgData.timestamp) renderedMessages.add(msgData.timestamp);
   }
 
   const msg=document.createElement("div");
+msg.dataset.timestamp = msgData.timestamp;
   msg.className="message "+(msgData.user===username?"mine":"other");
 
   if(msgData.type==="file"){
@@ -465,7 +720,55 @@ if(msgData.timestamp) renderedMessages.add(msgData.timestamp);
 
   const messagesBox=document.getElementById("messages");
   messagesBox.appendChild(msg);
+  // === Swipe delete logic ===
+if(msgData.user === username){
+  let startX = 0;
+  let currentX = 0;
+  let isSwiping = false;
+
+  msg.addEventListener("touchstart", (e)=>{
+    startX = e.touches[0].clientX;
+    isSwiping = true;
+    msg.classList.add("swiping");
+  });
+
+  msg.addEventListener("touchmove", (e)=>{
+    if(!isSwiping) return;
+    currentX = e.touches[0].clientX;
+    const diff = currentX - startX;
+
+    if(diff < 0){ // свайп влево
+      msg.style.transform = `translateX(${diff}px)`;
+
+      if(Math.abs(diff) > 80){
+        msg.classList.add("delete-ready");
+      } else {
+        msg.classList.remove("delete-ready");
+      }
+    }
+  });
+
+  msg.addEventListener("touchend", ()=>{
+    isSwiping = false;
+    msg.classList.remove("swiping");
+
+    if(Math.abs(currentX - startX) > 100){
+      // удаляем из базы
+      remove(ref(database,"rooms/"+currentRoom+"/"+msgData.timestamp));
+      msg.style.opacity = "0";
+      setTimeout(()=>msg.remove(),200);
+    } else {
+      msg.style.transform = "translateX(0)";
+      msg.classList.remove("delete-ready");
+    }
+  });
+}
+  // glow только если сообщение не от нас
+if(msgData.user !== username){
+  msg.classList.add("new-glow");
+}
   messagesBox.scrollTop=messagesBox.scrollHeight;
+  updateScrollShadows();
   // ===== Воспроизведение звука =====
   if(msgData.user === username){
     playSendSound();

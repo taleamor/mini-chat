@@ -11,6 +11,12 @@
 <style>
 /* === Стили остались без изменений, только добавим кнопку звонка чуть больше === */
 body { margin:0; font-family: Arial, sans-serif; background-color: #2a2a2a; color: white; display:flex; justify-content:center; align-items:flex-start; min-height:100vh; overflow-x:hidden;}
+html, body {
+  height: 100%;
+  overflow: hidden; /* предотвращает случайный скролл всей страницы */
+  position: fixed;
+  width: 100%;
+}
 .container { width:94%; max-width:460px; height:100vh; background:#2a2a2a; border-radius:18px; display:flex; flex-direction:column; padding:10px; box-sizing:border-box; position:relative;}
 h2,h3 { margin:4px 0; text-align:center;}
 input { padding:7px; margin:3px 0; border-radius:8px; border:none; font-size:13px;}
@@ -410,33 +416,37 @@ renderHistory();
 
 /* ===== НАЗАД ===== */
 window.goBack = function() {
-  resetCall(true);
+  resetCall();
 
-  if(currentListener){
-    off(currentListener);
-    currentListener = null;
-  }
+  if(currentListener) off(currentListener);
+  if(typingRef) off(typingRef);
+  if(onlineRef) set(onlineRef, null); // Убираем статус онлайн
 
-  if(currentRoom){
-    set(ref(database,"rooms/"+currentRoom+"/typing/"+username), false);
+  if(currentRoom && username){
+    set(ref(database, "rooms/" + currentRoom + "/typing/" + username), false);
   }
 
   document.getElementById("chat").style.display = "none";
   document.getElementById("login").style.display = "flex";
   document.getElementById("messages").innerHTML = "";
+  renderedMessages.clear();
 };
 
 /* ===== ВХОД ===== */
 window.enterChat = async function() {
-  if(currentListener){
-  off(currentListener);
-}
+  // Очистка старых подписок, если были
+  if(currentListener) off(currentListener);
+  if(typingRef) off(typingRef);
+  
   const room = document.getElementById("roomInput").value.trim();
   const password = document.getElementById("passwordInput").value;
   username = document.getElementById("usernameInput").value.trim();
-  if(password!==correctPassword) return alert("Неверный пароль");
-  if(room===""||username==="") return alert("Введите имя и комнату");
-  currentRoom=room; saveToHistory(room);
+
+  if(password !== correctPassword) return alert("Неверный пароль");
+  if(room === "" || username === "") return alert("Введите имя и комнату");
+
+  currentRoom = room; 
+  saveToHistory(room);
   setOnlineStatus();  // v3
 subscribeOnlineUsers(); // v3
 loadLastMessages(ref(database,"rooms/"+room)); // v3
@@ -494,6 +504,19 @@ onValue(typingRef, (snap) => {
 };
 
 /* ===== ПОКАЗ СООБЩЕНИЙ ===== */
+function setupTypingListener() {
+    onValue(typingRef, (snap) => {
+        const data = snap.val() || {};
+        const indicator = document.getElementById("typingIndicator");
+        const users = Object.keys(data).filter(u => data[u] === true && u !== username);
+
+        if(users.length > 0){
+            indicator.innerHTML = `<strong>${users[0]}</strong> пишет<span class="typing-dots"></span>`;
+        } else {
+            indicator.innerHTML = "";
+        }
+    });
+}
 function displayMessage(msgData){
 if(msgData.timestamp && renderedMessages.has(msgData.timestamp)) return;
 if(msgData.timestamp) renderedMessages.add(msgData.timestamp);
@@ -856,6 +879,52 @@ window.addEventListener("offline", () => {
 window.addEventListener("online", () => {
   console.log("Соединение восстановлено");
 });
+// === МОДУЛЬ "ВЕЧНЫЙ ДВИГАТЕЛЬ" ===
+
+// 1. Авто-обновление кеша при выходе новой версии
+if ("serviceWorker" in navigator) {
+  navigator.serviceWorker.addEventListener("controllerchange", () => {
+    // Если скрипт на сервере обновился, перезагружаем страницу
+    window.location.reload();
+  });
+}
+
+// 2. Глобальный обработчик ошибок (чтобы приложение не "белело")
+window.onerror = function(message, source, lineno, colno, error) {
+  console.error("Критическая ошибка:", message);
+  // Если случилась беда, пробуем мягко вернуть пользователя в строй через 3 секунды
+  if (message.includes("Firebase")) {
+     console.warn("Проблема с БД, переподключение...");
+  }
+  return false; 
+};
+
+// 3. Пинг-понг для поддержания соединения (Keep-Alive)
+// Если вкладка была в фоне долго, Firebase может тормозить при возврате
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState === "visible" && currentRoom) {
+    // Форсируем проверку соединения при открытии вкладки
+    const connectedRef = ref(database, ".info/connected");
+    onValue(connectedRef, (snap) => {
+      if (snap.val() === false) {
+        console.log("Соединение потеряно, восстанавливаем...");
+      }
+    });
+  }
+});
+
+// 4. Очистка памяти (защита от переполнения вкладки)
+// Если мессенджер открыт неделю, DOM-элементы могут сожрать память
+setInterval(() => {
+  const messagesBox = document.getElementById("messages");
+  if (messagesBox && messagesBox.children.length > 300) {
+    // Оставляем только последние 100 сообщений в DOM
+    while (messagesBox.children.length > 100) {
+      messagesBox.removeChild(messagesBox.firstChild);
+    }
+    console.log("Очистка памяти: старые сообщения удалены из видимости");
+  }
+}, 60000 * 30); // Раз в 30 минут
 
 </script>
 

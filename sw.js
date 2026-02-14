@@ -1,9 +1,8 @@
-// ===== Импорты Firebase =====
-importScripts('https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js');
-importScripts('https://www.gstatic.com/firebasejs/10.12.0/firebase-messaging.js');
+importScripts('https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js');
+importScripts('https://www.gstatic.com/firebasejs/8.10.1/firebase-messaging.js');
 
-// ===== Инициализация Firebase =====
-firebase.initializeApp({
+// 1. Конфиг (используем v8 синтаксис для совместимости внутри importScripts)
+const firebaseConfig = {
   apiKey: "AIzaSyA64EfxQkGhcCKnxAT_0k_3BTFt5wc6x-E",
   authDomain: "cochat-18c46.firebaseapp.com",
   databaseURL: "https://cochat-18c46-default-rtdb.europe-west1.firebasedatabase.app",
@@ -11,49 +10,72 @@ firebase.initializeApp({
   storageBucket: "cochat-18c46.firebasestorage.app",
   messagingSenderId: "966021418904",
   appId: "1:966021418904:web:efdf644f1203088c4025ed"
-});
+};
 
-// ===== Создаем объект для уведомлений =====
+firebase.initializeApp(firebaseConfig);
 const messaging = firebase.messaging();
 
-// ===== Установка и активация SW (логика кеша) =====
-const CACHE_NAME = "cochat-v1";
-const urlsToCache = [
+const CACHE_NAME = "cochat-cache-v2"; // Меняй версию здесь при крупных обновлениях
+const ASSETS = [
   "/",
   "/index.html",
   "/manifest.json"
 ];
 
+// Установка: кешируем базу
 self.addEventListener('install', (event) => {
-  self.skipWaiting(); // сразу активировать новый SW
+  self.skipWaiting();
   event.waitUntil(
-    caches.open(CACHE_NAME)
-      .then(cache => cache.addAll(urlsToCache))
+    caches.open(CACHE_NAME).then(cache => cache.addAll(ASSETS))
   );
 });
 
+// Активация: удаляем старые кеши других версий
 self.addEventListener('activate', (event) => {
-  clients.claim(); // сразу взять управление над всеми открытыми страницами
+  event.waitUntil(
+    caches.keys().then(keys => Promise.all(
+      keys.filter(key => key !== CACHE_NAME).map(key => caches.delete(key))
+    ))
+  );
+  return self.clients.claim();
 });
 
-// ===== Перехват запросов (кеширование) =====
-self.addEventListener("fetch", event => {
+// === СТРАТЕГИЯ: Сначала кеш, обновление в фоне ===
+self.addEventListener('fetch', (event) => {
+  // Не кешируем запросы к Firebase Realtime DB и уведомления
+  if (event.request.url.includes("firebaseio.com") || event.request.url.includes("googleapis")) {
+    return;
+  }
+
   event.respondWith(
-    caches.match(event.request)
-      .then(response => response || fetch(event.request))
+    caches.open(CACHE_NAME).then((cache) => {
+      return cache.match(event.request).then((cachedResponse) => {
+        const fetchPromise = fetch(event.request).then((networkResponse) => {
+          // Если ответ от сети ок, кладем копию в кеш
+          if (networkResponse.status === 200) {
+             cache.put(event.request, networkResponse.clone());
+          }
+          return networkResponse;
+        }).catch(() => {
+          // Если сеть упала — просто ничего не делаем, вернется кеш
+        });
+
+        // Возвращаем кеш сразу, если он есть, или ждем сеть
+        return cachedResponse || fetchPromise;
+      });
+    })
   );
 });
 
-// ===== Фоновые уведомления Firebase =====
-messaging.onBackgroundMessage(function(payload) {
-  console.log('[sw.js] Получено фоновое сообщение ', payload);
-
-  const notificationTitle = payload.notification?.title || "Новое сообщение";
+// Фоновые уведомления
+messaging.onBackgroundMessage((payload) => {
+  const notificationTitle = payload.notification?.title || "CoChat";
   const notificationOptions = {
-    body: payload.notification?.body || "Вы получили новое сообщение",
-    icon: '/icon-192.png', // иконка бренда
-    tag: 'cochat-notification', // чтобы не спамить одинаковыми уведомлениями
+    body: payload.notification?.body || "Новое сообщение в чате",
+    icon: '/icon-192.png',
+    badge: '/icon-192.png', // иконка в статус-баре Android
+    tag: 'msg-group',
+    renotify: true
   };
-
   self.registration.showNotification(notificationTitle, notificationOptions);
 });

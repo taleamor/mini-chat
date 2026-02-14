@@ -126,7 +126,32 @@ button:active,
   font-size: 12px !important;
 }
 .btn-hangup { background-color: #ef4444 !important; }
-
+.avatar-upload {
+  width: 90px;
+  height: 90px;
+  border-radius: 12px; /* Квадрат со скруглением */
+  background: #333;
+  margin: 10px auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  border: 2px solid #10a37f;
+  overflow: hidden;
+  position: relative;
+}
+.avatar-upload img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.msg-avatar {
+  width: 34px;
+  height: 34px;
+  border-radius: 6px; /* Квадратная аватарка в чате */
+  margin-right: 10px;
+  object-fit: cover;
+}
 /* ===== МОБИЛЬНАЯ АДАПТАЦИЯ ===== */
 @media (max-width: 600px) {
   input {
@@ -288,6 +313,11 @@ button:active,
 
 <div id="login" class="container">
   <h2>CoChat</h2>
+  <div class="avatar-upload" onclick="document.getElementById('avatarInput').click()">
+  <img id="avatarPreview" src="https://ui-avatars.com/api/?name=User&background=333&color=fff&rounded=false" alt="Avatar">
+  <input type="file" id="avatarInput" hidden accept="image/*">
+</div>
+<div style="text-align:center; font-size:11px; color:#10a37f; margin-bottom:12px; font-weight:bold;">УСТАНОВИТЬ ФОТО</div>
   <input id="emailInput" placeholder="Email">
 <input id="authPasswordInput" type="password" placeholder="Пароль">
 <button onclick="register()">Регистрация</button>
@@ -363,7 +393,31 @@ import {
   onAuthStateChanged,
   signOut
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+let userAvatar = null;
 
+// Обработка выбора аватарки
+document.getElementById('avatarInput').addEventListener('change', function(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+
+  const reader = new FileReader();
+  reader.onload = function(event) {
+    const img = new Image();
+    img.onload = function() {
+      // Сжимаем до 100x100 для экономии места
+      const canvas = document.createElement('canvas');
+      canvas.width = 100;
+      canvas.height = 100;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0, 100, 100);
+      
+      userAvatar = canvas.toDataURL('image/jpeg', 0.6); // Качество 60%
+      document.getElementById('avatarPreview').src = userAvatar;
+    };
+    img.src = event.target.result;
+  };
+  reader.readAsDataURL(file);
+});
   // ===== ENGINE v2: анти-спам =====
 let lastSendTime = 0;
 
@@ -697,11 +751,33 @@ if(msgData.timestamp) renderedMessages.add(msgData.timestamp);
       <div class="time">${msgData.time}</div>
     `;
   } else {
-    msg.innerHTML=`
-      <div><strong>${msgData.user}</strong>: ${msgData.text}</div>
-      <div class="time">${msgData.time}</div>
-    `;
+    // Если аватара нет, генерируем квадратную заглушку (rounded=false)
+const avatarSrc = msgData.avatar || `https://ui-avatars.com/api/?name=${msgData.user}&background=random&rounded=false`;
+
+msg.innerHTML = `
+  <div style="display:flex; align-items:flex-start; gap:4px;">
+    <img src="${avatarSrc}" class="msg-avatar">
+    <div style="flex:1;">
+      <div style="font-size:12px; color:#10a37f; font-weight:bold; margin-bottom:2px;">${msgData.user}</div>
+      <div>${msgData.text}</div>
+    </div>
+  </div>
+  <div class="time" style="text-align:right; margin-top:2px;">${msgData.time}</div>
+`;
   }
+  // Если аватара нет, генерируем квадратную заглушку (rounded=false)
+const avatarSrc = msgData.avatar || `https://ui-avatars.com/api/?name=${msgData.user}&background=random&rounded=false`;
+
+msg.innerHTML = `
+  <div style="display:flex; align-items:flex-start; gap:4px;">
+    <img src="${avatarSrc}" class="msg-avatar">
+    <div style="flex:1;">
+      <div style="font-size:12px; color:#10a37f; font-weight:bold; margin-bottom:2px;">${msgData.user}</div>
+      <div>${msgData.text}</div>
+    </div>
+  </div>
+  <div class="time" style="text-align:right; margin-top:2px;">${msgData.time}</div>
+`;
 
   const messagesBox=document.getElementById("messages");
   messagesBox.appendChild(msg);
@@ -811,7 +887,13 @@ if(typingRef){
   if(input.value.trim()==="") return;
   const now=new Date();
   const timeString=now.getHours().toString().padStart(2,'0')+":"+now.getMinutes().toString().padStart(2,'0');
-  push(ref(database,"rooms/"+currentRoom),{user:username,text:input.value,time:timeString,timestamp:Date.now()});
+ push(ref(database,"rooms/"+currentRoom),{
+  user:username,
+  text:input.value,
+  time:timeString,
+  timestamp:Date.now(),
+  avatar: userAvatar // добавляем аватарку
+});
   input.value="";
 
 };
@@ -1007,7 +1089,7 @@ ringtone.currentTime = 0;
   // Скрываем панель
   const panel = document.getElementById("callPanel");
   if(panel) panel.style.display = "none";
-  
+
 if (currentRoom) {
     remove(ref(database, `rooms/${currentRoom}/call/muteStatus`));
 }

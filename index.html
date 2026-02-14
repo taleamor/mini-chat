@@ -107,6 +107,25 @@ button:active,
   background: linear-gradient(145deg,#ef4444,#991b1b) !important;
   color: white !important;
 }
+#callPanel {
+  position: fixed;
+  top: 10px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(0, 0, 0, 0.8);
+  padding: 10px 20px;
+  border-radius: 25px;
+  display: none; /* Скрыто по умолчанию */
+  gap: 15px;
+  z-index: 10000;
+  border: 1px solid #10a37f;
+  align-items: center;
+}
+.call-btn-ui {
+  padding: 8px 15px !important;
+  font-size: 12px !important;
+}
+.btn-hangup { background-color: #ef4444 !important; }
 
 /* ===== МОБИЛЬНАЯ АДАПТАЦИЯ ===== */
 @media (max-width: 600px) {
@@ -327,6 +346,11 @@ button:active,
     <button onclick="sendMessage()">➤</button>
   </div>
 </div>
+<div id="callPanel">
+  <span id="callStatus" style="font-size:12px; margin-right:5px;">На связи</span>
+  <button id="muteBtn" class="call-btn-ui">Мут</button>
+  <button id="hangupBtn" class="call-btn-ui btn-hangup">Завершить</button>
+</div>
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
@@ -355,6 +379,8 @@ const firebaseConfig = {
   messagingSenderId: "966021418904",
   appId: "1:966021418904:web:efdf644f1203088c4025ed"
 };
+const ringtone = new Audio('https://assets.mixkit.co/active_storage/sfx/1358/1358-preview.mp3'); // Стандартный звук звонка
+ringtone.loop = true; // Чтобы мелодия повторялась, пока не ответят
 /* ===== v3: Онлайн/офлайн статус ===== */
 let onlineRef = null;
 
@@ -428,11 +454,17 @@ function subscribeIncomingCalls() {
   onValue(callRef, (snap) => {
     const callData = snap.val();
     if(callData && callData.to===username && !window.inCall){
-      if(confirm(`${callData.from} звонит! Принять звонок?`)){
-        startCall(true, callData.from); // принял звонок
-      } else {
-        set(ref(database, `rooms/${currentRoom}/call/${callData.from}`), null); // отклонить
-      }
+      ringtone.play().catch(e => console.log("Нужно взаимодействие с сайтом для звука")); 
+
+if(confirm(`${callData.from} звонит! Принять звонок?`)){
+  ringtone.pause();
+  ringtone.currentTime = 0;
+  startCall(true, callData.from); 
+} else {
+  ringtone.pause();
+  ringtone.currentTime = 0;
+  set(ref(database, `rooms/${currentRoom}/call`), null); 
+}
     }
   });
 }
@@ -859,159 +891,149 @@ window.inCall = false;
 let callRef = null;
 
 async function startCall(isAnswer, peerName) {
-  if(!callRef) callRef = ref(database, "rooms/" + currentRoom + "/call");
+  if (window.inCall) return;
+  window.inCall = true;
 
-  // Получаем микрофон, если ещё нет
-  if(!localStream){
-    try {
-      localStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
-    } catch(err){
-      return alert("Не удалось получить микрофон: " + err.message);
-    }
+  // Показываем панель управления
+  const panel = document.getElementById("callPanel");
+  panel.style.display = "flex";
+
+  // Настройка микрофона
+  try {
+    localStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+  } catch(err) {
+    alert("Доступ к микрофону отклонен");
+    resetCall();
+    return;
   }
-// === панель звонка сверху ===
-let callPanel = document.getElementById("callPanel");
-if(!callPanel){
-  callPanel = document.createElement("div");
-  callPanel.id = "callPanel";
-  callPanel.style.position = "absolute";
-  callPanel.style.top = "10px";
-  callPanel.style.left = "50%";
-  callPanel.style.transform = "translateX(-50%)";
-  callPanel.style.display = "flex";
-  callPanel.style.gap = "10px";
-  callPanel.style.zIndex = "999";
-  document.body.appendChild(callPanel);
-
-  // кнопка Мут
-  const muteBtn = document.createElement("button");
-  muteBtn.innerText = "Мут";
-  muteBtn.className = "call-button"; // можно использовать твой стиль кнопки
-  muteBtn.onclick = () => {
-    if(localStream){
-      localStream.getAudioTracks().forEach(track => track.enabled = !track.enabled);
-      muteBtn.innerText = localStream.getAudioTracks()[0].enabled ? "Мут" : "Вкл";
-    }
-  };
-  callPanel.appendChild(muteBtn);
-
-  // кнопка Сброс
-  const dropBtn = document.createElement("button");
-  dropBtn.innerText = "Сброс";
-  dropBtn.className = "call-button"; 
-  dropBtn.onclick = () => { resetCall(); callPanel.remove(); };
-  callPanel.appendChild(dropBtn);
-}
 
   const pc = new RTCPeerConnection(config);
   currentPC = pc;
-  peerConnections[peerName] = pc;
 
-  // v3: безопасные ICE и авто переподключение
-setupIceCandidates(pc, peerName);
-setupConnectionState(pc, peerName);
-
-  pc.onconnectionstatechange = () => {
-  if(pc.connectionState === "closed"){
-    resetCall();
-  }
-};
-
-  // Добавляем аудиотреки
+  // Добавляем наш звук в поток
   localStream.getTracks().forEach(track => pc.addTrack(track, localStream));
 
-  // Воспроизведение потока собеседника
+  // Когда получаем звук от собеседника
   pc.ontrack = (e) => {
-    let audio = document.getElementById("remoteAudio_" + peerName);
-    if(!audio){
+    let audio = document.getElementById("remoteAudio");
+    if(!audio) {
       audio = document.createElement("audio");
-      audio.id = "remoteAudio_" + peerName;
+      audio.id = "remoteAudio";
       audio.autoplay = true;
       document.body.appendChild(audio);
     }
     audio.srcObject = e.streams[0];
   };
 
-  // ICE кандидаты
+  // Правильный обмен ICE-кандидатами (чтобы оба слышали)
   pc.onicecandidate = (event) => {
-    if(event.candidate){
-      push(ref(database, "rooms/" + currentRoom + "/ice/" + peerName), event.candidate.toJSON());
+    if(event.candidate) {
+      // Пишем в СВОЮ ветку отправки
+      push(ref(database, `rooms/${currentRoom}/ice/${username}_to_${peerName}`), event.candidate.toJSON());
     }
   };
 
-  // Получаем ICE кандидаты от собеседника
-  const iceRef = ref(database, "rooms/" + currentRoom + "/ice/" + username);
+  const iceRef = ref(database, `rooms/${currentRoom}/ice/${peerName}_to_${username}`);
   onChildAdded(iceRef, (snap) => {
     const candidate = snap.val();
-    if(candidate && currentPC){
-      currentPC.addIceCandidate(new RTCIceCandidate(candidate));
-    }
+    if(candidate && pc) pc.addIceCandidate(new RTCIceCandidate(candidate));
   });
 
-  if(!isAnswer){
-    // Создаём offer
+  // Логика кнопок
+  document.getElementById("muteBtn").onclick = () => {
+    const audioTrack = localStream.getAudioTracks()[0];
+    audioTrack.enabled = !audioTrack.enabled;
+    
+    // Меняем текст кнопки
+    const isMuted = !audioTrack.enabled;
+    document.getElementById("muteBtn").innerText = isMuted ? "Вкл. мик" : "Мут";
+    document.getElementById("muteBtn").style.background = isMuted ? "#555" : "#10a37f";
+
+    // Сообщаем собеседнику о муте через базу
+    set(ref(database, `rooms/${currentRoom}/call/muteStatus/${username}`), isMuted);
+};
+
+  document.getElementById("hangupBtn").onclick = () => {
+    resetCall();
+  };
+
+  // Сигналлинг (Offer/Answer)
+  const callDataRef = ref(database, `rooms/${currentRoom}/call`);
+  // Слушаем, не нажал ли собеседник мут
+const muteStatusRef = ref(database, `rooms/${currentRoom}/call/muteStatus/${peerName}`);
+onValue(muteStatusRef, (snap) => {
+    const isPeerMuted = snap.val();
+    const statusEl = document.getElementById("callStatus");
+    if (statusEl) {
+        statusEl.innerText = isPeerMuted ? "Собеседник в муте 🔇" : "На связи";
+        statusEl.style.color = isPeerMuted ? "#ef4444" : "white";
+    }
+});
+  if (!isAnswer) {
     const offer = await pc.createOffer();
     await pc.setLocalDescription(offer);
-    set(callRef, { from: username, to: peerName, sdp: offer });
-    window.inCall = true;
+    set(callDataRef, { from: username, to: peerName, sdp: offer, type: 'offer' });
 
-    // Слушаем ответ
-    onValue(callRef, async (snap) => {
-      const data = snap.val();
-      if(data && data.sdp && data.from === peerName){
-        if(!pc.currentRemoteDescription){
-          await pc.setRemoteDescription(new RTCSessionDescription(data.sdp));
+    onValue(callDataRef, async (snap) => {
+      const val = snap.val();
+      if (val && val.type === 'answer' && val.to === username) {
+        if (!pc.currentRemoteDescription) {
+          await pc.setRemoteDescription(new RTCSessionDescription(val.sdp));
         }
       }
     });
   } else {
-    // Принимаем offer
-    const snap = await get(callRef);
-    if(snap.exists()){
-      const data = snap.val();
-      await pc.setRemoteDescription(new RTCSessionDescription(data.sdp));
-      const answer = await pc.createAnswer();
-      await pc.setLocalDescription(answer);
-      set(callRef, { from: username, to: data.from, sdp: answer });
-      window.inCall = true;
-    }
+    const snap = await get(callDataRef);
+    const data = snap.val();
+    await pc.setRemoteDescription(new RTCSessionDescription(data.sdp));
+    const answer = await pc.createAnswer();
+    await pc.setLocalDescription(answer);
+    set(callDataRef, { from: username, to: data.from, sdp: answer, type: 'answer' });
   }
+
+  // Следим за завершением звонка другим пользователем
+  onValue(callDataRef, (snap) => {
+    if (!snap.exists() && window.inCall) {
+      resetCall();
+    }
+  });
 }
 
 function resetCall() {
+  ringtone.pause();
+ringtone.currentTime = 0;
   window.inCall = false;
-
-  if(localStream){
+  
+  // Скрываем панель
+  const panel = document.getElementById("callPanel");
+  if(panel) panel.style.display = "none";
+  
+if (currentRoom) {
+    remove(ref(database, `rooms/${currentRoom}/call/muteStatus`));
+}
+  // Останавливаем микрофон
+  if(localStream) {
     localStream.getTracks().forEach(track => track.stop());
     localStream = null;
   }
 
-  if(currentPC){
+  // Закрываем соединение
+  if(currentPC) {
     currentPC.close();
     currentPC = null;
   }
 
-  for (let peer in peerConnections) {
-    peerConnections[peer].close();
-    delete peerConnections[peer];
+  // Чистим базу данных
+  if(currentRoom) {
+    set(ref(database, `rooms/${currentRoom}/call`), null);
+    set(ref(database, `rooms/${currentRoom}/ice/${username}_to_${currentTypingUser || 'peer'}`), null);
+    // Очистка всех кандидатов для комнаты
+    remove(ref(database, `rooms/${currentRoom}/ice`));
   }
 
-  if(currentRoom){
-    set(ref(database, "rooms/" + currentRoom + "/ice/" + username), null);
-    set(ref(database, "rooms/" + currentRoom + "/call"), null);
-  }
-
-  // Удаляем верхнюю панель если есть
-  const topControls = document.getElementById("callTopControls");
-  if(topControls) topControls.remove();
-
-  // Скрываем callControls если используется
-  const callControls = document.getElementById("callControls");
-  if(callControls) callControls.style.display = "none";
-
-  // Скрываем экран звонка
-  const callScreen = document.getElementById("callScreen");
-  if(callScreen) callScreen.style.display = "none";
+  // Удаляем аудио элемент
+  const audio = document.getElementById("remoteAudio");
+  if(audio) audio.remove();
 }
 
 </script>
@@ -1113,6 +1135,7 @@ if(isNearBottom){
   unreadCount = 0;
   newMsgBadge.classList.remove("show");
 }
+
 </script>
 
 </body>

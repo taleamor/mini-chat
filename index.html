@@ -469,6 +469,7 @@ const firebaseConfig = {
   messagingSenderId: "966021418904",
   appId: "1:966021418904:web:efdf644f1203088c4025ed"
 };
+
 const ringtone = new Audio('https://assets.mixkit.co/active_storage/sfx/1358/1358-preview.mp3'); // Стандартный звук звонка
 ringtone.loop = true; // Чтобы мелодия повторялась, пока не ответят
 /* ===== v3: Онлайн/офлайн статус ===== */
@@ -482,6 +483,7 @@ function setOnlineStatus() {
   // При закрытии вкладки удаляем статус
   window.addEventListener("beforeunload", () => set(onlineRef, null));
 }
+
 
 // Слушаем онлайн других пользователей
 function subscribeOnlineUsers() {
@@ -684,7 +686,22 @@ window.logout = async function(){
 window.enterChat = async function() {
   if(!auth.currentUser){
   return alert("Сначала войдите в аккаунт");
+  // Скроллим вниз после небольшой задержки, чтобы сообщения успели отрисоваться
+ // Скроллим вниз и чистим уведомления при входе
+ setTimeout(() => {
+    const messagesBox = document.getElementById("messages");
+    const newMsgBadge = document.getElementById("newMsgBadge");
+    
+    messagesBox.scrollTop = messagesBox.scrollHeight;
+    unreadCount = 0; 
+    
+    if(newMsgBadge) {
+      newMsgBadge.classList.remove("show");
+      newMsgBadge.innerText = "Новые сообщения"; 
+    }
+  }, 300);
 }
+  
   // Очистка старых подписок, если были
   if(currentListener) off(currentListener);
   if(typingRef) off(typingRef);
@@ -873,13 +890,14 @@ const isNearBottom =
 
 // если сообщение НЕ от нас
 if(msgData.user !== username){
+  const isNearBottom = messagesBox.scrollHeight - messagesBox.scrollTop - messagesBox.clientHeight < 150;
   if(!isNearBottom){
     unreadCount++;
-    newMsgBadge.innerText = `Новые сообщения (${unreadCount})`;
-    newMsgBadge.classList.add("show");
+    document.getElementById("newMsgBadge").innerText = `Новые сообщения (${unreadCount})`;
+    document.getElementById("newMsgBadge").classList.add("show");
   } else {
-    unreadCount = 0;
-    newMsgBadge.classList.remove("show");
+    // Если мы и так внизу, просто прокручиваем к новому сообщению
+    messagesBox.scrollTop = messagesBox.scrollHeight;
   }
 }
 

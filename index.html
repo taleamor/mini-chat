@@ -715,7 +715,6 @@ window.enterChat = async function() {
   saveToHistory(room);
   setOnlineStatus();  // v3
 subscribeOnlineUsers(); // v3
-loadLastMessages(ref(database,"rooms/"+room)); // v3
 subscribeIncomingCalls(); // v3
   const messagesRef = ref(database,"rooms/"+room);
   currentListener = messagesRef;
@@ -811,26 +810,13 @@ msg.innerHTML = `
   <div style="display:flex; align-items:flex-start; gap:4px;">
     <img src="${avatarSrc}" class="msg-avatar">
     <div style="flex:1;">
-      <div style="font-size:12px; color:#10a37f; font-weight:bold; margin-bottom:2px;">${msgData.user}</div>
+      <div style="font-size:12px; color:white; font-weight:bold; margin-bottom:2px;">${msgData.user}</div>
       <div>${msgData.text}</div>
     </div>
   </div>
   <div class="time" style="text-align:right; margin-top:2px;">${msgData.time}</div>
 `;
   }
-  // Если аватара нет, генерируем квадратную заглушку (rounded=false)
-const avatarSrc = msgData.avatar || `https://ui-avatars.com/api/?name=${msgData.user}&background=random&rounded=false`;
-
-msg.innerHTML = `
-  <div style="display:flex; align-items:flex-start; gap:4px;">
-    <img src="${avatarSrc}" class="msg-avatar">
-    <div style="flex:1;">
-      <div style="font-size:12px; color:#10a37f; font-weight:bold; margin-bottom:2px;">${msgData.user}</div>
-      <div>${msgData.text}</div>
-    </div>
-  </div>
-  <div class="time" style="text-align:right; margin-top:2px;">${msgData.time}</div>
-`;
 
   const messagesBox=document.getElementById("messages");
   messagesBox.appendChild(msg);

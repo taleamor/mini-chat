@@ -419,9 +419,12 @@ button:active,
 </div>
 
 <script type="module">
+import { query, limitToLast } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js"
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
 import { getDatabase, ref, push, onChildAdded, remove, get, off, onValue, set } 
+
 from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+
 import { 
   getAuth, 
   createUserWithEmailAndPassword, 
@@ -716,7 +719,7 @@ window.enterChat = async function() {
   setOnlineStatus();  // v3
 subscribeOnlineUsers(); // v3
 subscribeIncomingCalls(); // v3
-  const messagesRef = ref(database,"rooms/"+room);
+  const messagesRef = query(ref(database, "rooms/" + room), limitToLast(50));
   currentListener = messagesRef;
   const snapshot = await get(messagesRef);
   if(snapshot.exists()){ const data = snapshot.val(); const keys=Object.keys(data); const lastMsg=data[keys[keys.length-1]]; if(Date.now()-lastMsg.timestamp>FIVE_DAYS){ await remove(messagesRef); } }

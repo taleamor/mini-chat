@@ -161,6 +161,24 @@ button:active,
   margin-right: 10px;
   object-fit: cover;
 }
+/* Финальный фикс центровки футера */
+#login .footer {
+  position: relative; /* Убираем absolute, чтобы он шел после кнопок */
+  margin-top: 30px;
+  width: 100%;
+  left: 0;
+  transform: none;
+}
+
+#login .footer div {
+  width: 100%;
+  text-align: center;
+}
+
+#login .brandPalm svg {
+  display: block;
+  margin: 0 auto; /* Центрирует SVG внутри блока */
+}
 /* ===== МОБИЛЬНАЯ АДАПТАЦИЯ ===== */
 @media (max-width: 600px) {
   input {

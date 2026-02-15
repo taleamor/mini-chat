@@ -9,23 +9,69 @@
 <meta name="theme-color" content="#10a37f">
 
 <style>
-/* === Стили остались без изменений, только добавим кнопку звонка чуть больше === */
-body { margin:0; font-family: Arial, sans-serif; background-color: #2a2a2a; color: white; display:flex; justify-content:center; align-items:flex-start; min-height:100vh; overflow-x:hidden;}
+/* Базовые цвета (Стандартная тема) */
+:root {
+  --bg-color: #2a2a2a;
+  --accent-color: #10a37f;
+  --msg-mine: white;
+  --msg-mine-text: black;
+  --msg-other: #10a37f;
+  --text-main: white;
+}
+
+/* Дневная версия (Яркая) */
+body.theme-day {
+  --bg-color: #f5f0e1; /* Бежево-коричневый фон */
+  --accent-color: #d2b48c; /* Светло-коричневый/бежевый */
+  --msg-mine: white;
+  --msg-other: #d2b48c;
+  --text-main: #5d4037;
+}
+
+/* Ночная версия (Дерзкая) */
+body.theme-night {
+  --bg-color: #000000; /* Чисто черный */
+  --accent-color: #ffffff; /* Белый акцент */
+  --msg-mine: #e0e0e0; /* Серо-белый */
+  --msg-other: #333333;
+  --text-main: white;
+}
+
+/* Элегантная (Джентльменская) */
+body.theme-elegant {
+  --bg-color: #1a237e; /* Темно-синий */
+  --accent-color: #c5a059; /* Золотисто-бежевый */
+  --msg-mine: white;
+  --msg-other: #c5a059;
+  --text-main: white;
+}
+
+/* Леди версия (Женская) */
+body.theme-lady {
+  --bg-color: #1b5e20; /* Темно-зеленый */
+  --accent-color: #880e4f; /* Бордовый */
+  --msg-mine: #fff9c4; /* Кремовый */
+  --msg-other: #880e4f;
+  --text-main: white;
+}
+
+/* Применяем переменные к существующим стилям */
+body { background-color: var(--bg-color); color: var(--text-main); transition: 0.3s; }
 html, body {
   height: 100%;
   overflow: hidden; /* предотвращает случайный скролл всей страницы */
   position: fixed;
   width: 100%;
 }
-.container { width:94%; max-width:460px; height:100vh; background:#2a2a2a; border-radius:18px; display:flex; flex-direction:column; padding:10px; box-sizing:border-box; position:relative;animation: fadeChat 0.3s ease;}
+.container { background: var(--bg-color); }
 h2,h3 { margin:4px 0; text-align:center;}
 input { padding:7px; margin:3px 0; border-radius:8px; border:none; font-size:13px;}
-button { padding:10px; border:none; border-radius:8px; background-color:#10a37f; color:white; font-size:14px; cursor:pointer; margin-bottom: 8px;}
+button, #fileInputLabel, #callButton { background-color: var(--accent-color) !important; }
 .back-button { position:absolute; top:8px; left:10px; font-size:18px; cursor:pointer; opacity:0.7;}
 #messages { flex:1 1 auto; overflow-y:auto; margin:6px 0; display:flex; flex-direction:column; scroll-behavior:smooth;}
 .message { max-width:75%; padding:7px 9px; border-radius:14px; margin:3px 0; font-size:13px; animation:fadeIn 0.2s ease;}
-.mine { align-self:flex-end; background:white; color:black;}
-.other { align-self:flex-start; background:#10a37f; color:white;}
+.mine { background: var(--msg-mine) !important; color: var(--msg-mine-text) !important; }
+.other { background: var(--msg-other) !important; color: white !important; }
 .time { font-size:10px; opacity:0.6; margin-top:2px;}
 @keyframes fadeIn {
   from { 
@@ -135,20 +181,7 @@ button:active,
   font-size: 12px !important;
 }
 .btn-hangup { background-color: #ef4444 !important; }
-.avatar-upload {
-  width: 90px;
-  height: 90px;
-  border-radius: 12px; /* Квадрат со скруглением */
-  background: #333;
-  margin: 10px auto;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  border: 2px solid #10a37f;
-  overflow: hidden;
-  position: relative;
-}
+.avatar-upload { border-color: var(--accent-color); }
 .avatar-upload img {
   width: 100%;
   height: 100%;
@@ -310,22 +343,7 @@ button:active,
   transform:scale(0.9);
 }
 /* ===== Бейдж новых сообщений ===== */
-#newMsgBadge{
-  position:absolute;
-  bottom:145px;
-  left:50%;
-  transform:translateX(-50%) translateY(10px);
-  background:#1f1f1f;
-  color:#10a37f;
-  padding:6px 14px;
-  border-radius:12px;
-  font-size:12px;
-  opacity:0;
-  pointer-events:none;
-  transition: all 0.25s ease;
-  box-shadow:0 4px 12px rgba(0,0,0,0.4);
-  border:1px solid #10a37f;
-}
+#newMsgBadge { border-color: var(--accent-color); color: var(--accent-color); }
 
 #newMsgBadge.show{
   opacity:1;
@@ -348,6 +366,15 @@ button:active,
 <body>
 
 <div id="login" class="container">
+  <div style="display: flex; justify-content: flex-end; gap: 5px; margin-bottom: 10px;">
+  <select id="themeSelector" onchange="changeTheme(this.value)" style="background: #333; color: white; border: 1px solid #10a37f; border-radius: 5px; font-size: 10px; padding: 5px;">
+    <option value="default">Стандарт</option>
+    <option value="day">Дневная</option>
+    <option value="night">Ночная</option>
+    <option value="elegant">Элегант</option>
+    <option value="lady">Леди</option>
+  </select>
+</div>
   <h2>COCHAT</h2>
   <div class="avatar-upload" onclick="document.getElementById('avatarInput').click()">
   <img id="avatarPreview" src="https://ui-avatars.com/api/?name=User&background=333&color=fff&rounded=false" alt="Avatar">
@@ -430,6 +457,25 @@ import {
   signOut
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
 let userAvatar = null;
+
+// Функция смены темы
+window.changeTheme = function(theme) {
+  // Удаляем все темы
+  document.body.classList.remove('theme-day', 'theme-night', 'theme-elegant', 'theme-lady');
+  
+  // Добавляем выбранную (если не стандарт)
+  if (theme !== 'default') {
+    document.body.classList.add('theme-' + theme);
+  }
+  
+  // Сохраняем в память
+  localStorage.setItem('cochat-theme', theme);
+};
+
+// Загружаем тему при старте
+const savedTheme = localStorage.getItem('cochat-theme') || 'default';
+document.getElementById('themeSelector').value = savedTheme;
+changeTheme(savedTheme);
 
 // Обработка выбора аватарки
 document.getElementById('avatarInput').addEventListener('change', function(e) {
